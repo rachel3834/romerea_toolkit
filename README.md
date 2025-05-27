@@ -7,8 +7,11 @@ ROME/REA microlensing survey.
 
 ## Key terms used
 **Dataset:** A set of images taken of the same pointing in the sky, normally with a single camera and filter in a consistent configuration.  pyDANDIA is designed to reduce each dataset independently.
+
 **Field:** A sky pointing, the footprint of an instrument on sky at a given RA, Dec
+
 **Field data:** Data products combining the photometry from multiple datasets of the same sky pointing.  These can be from multiple cameras and filters.
+
 **Dataset star catalog:** A list of objects detected in the reference image for each dataset, and stored in the metadata file.  IMPORTANT: Since datasets are processed independently, the star catalog for each dataset is also independent.  
 
 The distinct star catalogs for each dataset means that the pipeline can be very flexible about processing data from different fields and instruments, but it means that the ID number of a star in one dataset does not automatically correspond to the same ID in a different dataset, even if they are of the same point in the sky.  
@@ -30,9 +33,13 @@ four files.
 
 ## The Field Crossmatch File
 Format: Multi-extension FITS binary tables
+
 Software to handle I/O: crossmatch.py
+
 Naming convention: <field name>_field_crossmatch.fits 
+
 Short video introduction to the crossmatch file
+
 Short video describing how to use the crossmatch tables in Python
 
 This file provides the combined star catalog for the whole field, including all objects detected in all datasets.  Since the combined star catalog - called the field index -  is always more complete than that for an individual dataset, this is considered to be the definitive catalog for the field, and it provides a unique star ID index for each object.  Each crossmatch file contains the following tables:
@@ -44,8 +51,11 @@ Stamps table: A table describing the dimensions and transformation parameters of
 
 ## The Quadrant Timeseries Photometry Files
 Format: HDF5
+
 Software to handle I/O: hd5_utils.py
+
 Naming convention: <field_name>_quad{1,2,3,4}_photometry.hdf5
+
 Short video describing how to use the timeseries photometry files
 
 Each quadrant’s timeseries photometry file is in the form of an array (n_stars, n_images, 7 columns), where the columns are:
