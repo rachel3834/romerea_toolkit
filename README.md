@@ -59,6 +59,7 @@ Naming convention: <field_name>_quad{1,2,3,4}_photometry.hdf5
 Short video describing how to use the timeseries photometry files
 
 Each quadrant’s timeseries photometry file is in the form of an array (n_stars, n_images, 7 columns), where the columns are:
+```
 Column 1: hjd
 Column 2: instrumental_mag
 Column 3: instrumental_mag_err
@@ -76,14 +77,21 @@ Column 14: sub_image_sky_bkgd_err
 Column 15: residual_x
 Column 16: residual_y
 Column 17: qc_flag
+```
 
 Note that the qc_flag column uses a bitmap to represent the following data quality states:
 0 No error; data point good
+
 1 No valid photometric measurement possible by stage 6
+
 2 Image photometry displayed excessive photometric scatter (usually the result of bad seeing or transparency)
+
 4 Data point failed phot scale factor / exposure time metric
+
 8 Low quality image resampling
+
 16 Difference image exhibited high residuals. 
+
 The ultimate state of the qc_flag is the sum of all of the above tests, meaning that datapoints with multiple issues can have qc_flag values exceeding 16.  A selection cut of qc_flag=0 should be applied to extract datapoints believed to be of good quality based on the automated checks.  
 
 Note that the corrected_mag columns are not yet populated but have been included to allow for the results of post-processing.  
