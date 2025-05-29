@@ -107,7 +107,7 @@ This star’s Field ID = 78284.   Using TopCat to look up this field_id in the F
 
 The pipeline (on branch ROME_DR1) includes a convenience function for reading the HDF5 files directly:
 ```
-python> from pyDANDIA import hd5_utils    
+python> from romerea_toolkit import hd5_utils    
 python> file_path = '/Users/rstreet1/ROMEREA/ROME-FIELD-01/DR1/ROME-FIELD-01_quad3_photometry.hdf5'
 python> phot_data = hd5_utils.read_phot_from_hd5_file(file_path)
 python> phot_data                                                                                                           
@@ -139,7 +139,7 @@ Having extracted these data, it’s often useful to select the images from diffe
 
 First, load the data from the crossmatch file, to access the data in the Images table.  The pipeline’s built-in functions will return it in the form of an Astropy table.  
 ```
-python> from pyDANDIA import crossmatch
+python> from romerea_toolkit import crossmatch
 python> import numpy as np
 python> file = '/Users/rstreet1/ROMEREA/ROME-FIELD-01/DR1/ROME-FIELD-01_field_crossmatch.fits'
 python> xmatch = crossmatch.CrossMatchTable() 
