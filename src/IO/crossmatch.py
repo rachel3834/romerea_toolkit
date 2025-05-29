@@ -3,7 +3,7 @@ from astropy.table import Table
 from astropy.table import Column
 from astropy.coordinates import SkyCoord
 from astropy import units
-from pyDANDIA import match_utils
+import match_utils
 import numpy as np
 from os import path
 import copy
