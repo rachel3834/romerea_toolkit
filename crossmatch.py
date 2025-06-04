@@ -3,7 +3,7 @@ from astropy.table import Table
 from astropy.table import Column
 from astropy.coordinates import SkyCoord
 from astropy import units
-import match_utils
+import romerea_toolkit.match_utils as match_utils
 import numpy as np
 from os import path
 import copy
