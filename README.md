@@ -38,16 +38,32 @@ Software to handle I/O: crossmatch.py
 
 Naming convention: <field name>_field_crossmatch.fits 
 
-Short video introduction to the crossmatch file
-
-Short video describing how to use the crossmatch tables in Python
-
 This file provides the combined star catalog for the whole field, including all objects detected in all datasets.  Since the combined star catalog - called the field index -  is always more complete than that for an individual dataset, this is considered to be the definitive catalog for the field, and it provides a unique star ID index for each object.  Each crossmatch file contains the following tables:
 Field Index: Unique identifiers for all objects detected in all datasets, their RA and Dec, and the corresponding index of each object in the star_catalog (in the metadata files) of all the datasets where it was detected.  A zero-entry in the dataset index columns indicates no detection of the object in that dataset.  The field index also lists which quadrant a star is assigned to, and the index of the star in that quadrant.  This data is used to identify which timeseries photometry file contains the star’s lightcurve data, and at which index in that file.  
 Datasets table: A table of all the datasets used to build the combined field data products.  
 Stars table: A table of the calibrated reference image photometry for all stars from all datasets, together with any Gaia data matching that star.  Currently, the Gaia data release used is Gaia-EDR3.  This table allows colour-magnitude analysis based on data from any site, and selection based on Gaia parameters.  
 Images table: A table of all images in all datasets, including information on the filter and HJD.  Note that the HJD entry can be zero, if no photometry was produced from the image.
 Stamps table: A table describing the dimensions and transformation parameters of the sub-image stamps used in the reduction.  
+
+There is code in this repository to make reading and writing the crossmatch tables easier.  
+
+To load the crossmatch table (the log option can be a logger object or None):
+```commandline
+import crossmatch 
+
+# Load the field's crossmatch table
+xmatch = crossmatch.CrossMatchTable()
+xmatch.load(file_path, log=log)
+```
+
+This creates an instance of a CrossMatchTable object which has attributes corresponding to the data table extentions 
+in the FITS file.  These are loaded as astropy Tables so they can be manipulated with the features offered by that 
+library.  E.g.:
+
+```commandline
+# Access a list of object field_indices
+print(xmatch.field_index['field_id'])
+```
 
 ## The Quadrant Timeseries Photometry Files
 Format: HDF5
