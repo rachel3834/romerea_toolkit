@@ -1,0 +1,70 @@
+import numpy as np
+from astropy.table import Table
+from astropy.coordinates import SkyCoord
+import astropy.units as u
+import os
+
+# all steps following astropy guide for matching catalogs https://docs.astropy.org/en/stable/coordinates/matchsep.html
+
+# now loading in CV catalog tab1 and making a table, "ogle", in ascii frmat of this data
+ogle_path = '/data01/aschweitzer/data/ROME/tab1.dat'
+ogle = Table.read(ogle_path, format='ascii.no_header')
+
+#now, had to convert RA and DEC columns from sexagesimal to float format in order for numpy to work before making a coordinate function using ra and dec
+ra_strings = ogle['col2'] 
+dec_strings = ogle['col3'] 
+ogle_coords = SkyCoord(ra_strings, dec_strings, unit=(u.hourangle, u.deg))
+
+# opening a path to rome crossmatch directories
+from astropy.io import fits
+rome_path = '/data01/aschweitzer/data/ROME'
+
+#making a for loop for all unzipped files (no storage for now + rome field 1 is missing?? from this folder??)
+for i in range(1, 21):
+    field_num = f"{i:02d}"
+    field_name = f"ROME-FIELD-{field_num}"
+    field_path = os.path.join(rome_path, f"{field_name}/{field_name}_field_crossmatch.fits")
+
+    #making sure to notify if a file is missing
+    if not os.path.exists(field_path):
+        print(f"Missing file: {field_path}")
+        continue
+
+    #making a table using the rome data
+    with fits.open(field_path) as hdul:
+     rome_table = Table(hdul['field_index'].data)
+ 
+ # extracting ROME coordinates, then performing the crossmatch, max separation <3" to pass
+    rome_coords = SkyCoord(ra=rome_table['ra'] * u.deg, dec=rome_table['dec'] * u.deg)
+    idx, sep2d, _ = ogle_coords.match_to_catalog_sky(rome_coords)
+    max_sep = 3 * u.arcsec
+    mask = sep2d < max_sep
+
+    if sum(mask) == 0:
+        print(f"No matches for {field_name}")
+        continue
+
+    # get field indices for ogle stars that passed the filters from the rome table made above, only for matched ogle stars
+    matched_ogle = ogle[mask]
+    matched_rome = rome_table[idx[mask]]
+
+    #making output table for visual ref, with each ogle column taking data directly from the rome index it matches a star to
+    output_table = Table()
+    output_table['ROME_ID'] = matched_rome['field_id']
+    output_table['OGLE_Dec'] = matched_ogle['col3']
+    output_table['ROME_Dec'] = matched_rome['dec']
+    output_table['ROME_RA'] = matched_rome['ra']
+    output_table['OGLE_RA'] = matched_ogle['col2']
+   
+
+    # now combining the above matched_## and saving it as a .dat file in ASCII format
+    from astropy.table import hstack
+    matches = hstack([matched_ogle, matched_rome])
+    print(f"Field {field_num}: {len(matches)} matched objects")
+    
+    # saving the output as matches to output_path "data" as ASCII; overwrite
+    output_path = f'/data01/aschweitzer/data/ROME-FIELD-{field_num}_CV_matches.txt'
+    matches.write(output_path, format='ascii', overwrite=True)
+
+    # now printing the output in terminal
+    print(output_table)
