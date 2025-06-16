@@ -4,7 +4,6 @@ version = "0.1.0"
 description = ""
 authors = ["Rachel Street <rstreet@lco.global>"]
 readme = "README.md"
-packages = []
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -14,12 +13,13 @@ fsspec = "2024.10.0"
 photutils = "1.11.0"
 scikit-image = "0.24.0"
 pytest = "8.3.4"
+h5py = "3.14.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 packages = [
-    { include = "." },
     { include = "*.py" },
+    { include = "romerea_toolkit/*.py" },
 ]
