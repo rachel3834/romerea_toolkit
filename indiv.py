@@ -5,7 +5,7 @@ import os
 import random
 import csv
 from astropy.io import fits
-hdf5_path = "ROME-FIELD-20_quad4_photometry.hdf5"
+hdf5_path = "/data01/aschweitzer/software/photo_copies/ROME-FIELD-20_quad4_photometry.hdf5"
 crossmatch_path = "/data01/aschweitzer/data/ROME/ROME-FIELD-20/ROME-FIELD-20_field_crossmatch.fits"
 info_files = {
     "rp": "CV_Lightcurves/Const_fits/variability_std_mean_rp.txt",
@@ -37,7 +37,7 @@ if len(filters) != num_obs:
 def load_info(path):
     idxs, is_vars = [], []
     with open(path, "r") as f:
-        reader = csv.DictReader(f, delimiter=None, skipinitialspace=True)
+        reader = csv.DictReader(f, delimiter="\t", skipinitialspace=True)
         for row in reader:
             idxs.append(int(row["star_index"]))
             is_vars.append(row["is_variable"].strip().lower() == "true")
