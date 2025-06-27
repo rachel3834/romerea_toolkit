@@ -47,6 +47,8 @@ for flt in unique_filters:
     mag_data = np.where(valid, data[:, :, mag_col], np.nan)
     means = np.nanmean(mag_data, axis=1)
     stds = np.nanstd(mag_data, axis=1)
+
+    # Keep only stars with finite values
     valid_mask = ~np.isnan(means) & ~np.isnan(stds)
     if np.sum(valid_mask) < 10:
         print(f"Too few valid stars for filter {flt}, skipping...")
@@ -55,7 +57,7 @@ for flt in unique_filters:
     valid_means = means[valid_mask]
     valid_stds = stds[valid_mask]
 
-    # fit poly
+    # Fit polynomial curve
     fit_poly = np.polyfit(valid_means, valid_stds, deg=2)
     fit_fn = np.poly1d(fit_poly)
     fit_vals = fit_fn(valid_means)
@@ -63,7 +65,7 @@ for flt in unique_filters:
     lower_thresh = fit_vals - 0.3
     is_variable = valid_stds > upper_thresh
 
-    # sorting
+    # Sort for smooth plotting
     sort_idx = np.argsort(valid_means)
     x = valid_means[sort_idx]
     y = valid_stds[sort_idx]
@@ -72,12 +74,12 @@ for flt in unique_filters:
     lower = yfit - 0.3
     is_var_sorted = is_variable[sort_idx]
 
-    # plotting
+    # Plot
     plt.figure(figsize=(8, 6), dpi=300)
     plt.scatter(x[~is_var_sorted], y[~is_var_sorted], s=5, label="Constant", alpha=0.7)
     plt.scatter(x[is_var_sorted], y[is_var_sorted], s=5, color="orange", label="Variable", alpha=0.7)
     plt.plot(x, yfit, 'g-', label="Best-fit")
-    plt.plot(x, upper, 'r--', label="+/-0.3 threshold")
+    plt.plot(x, upper, 'r--', label="±0.3 threshold")
     plt.plot(x, lower, 'r--')
     plt.xlabel("Mean Magnitude")
     plt.ylabel("Standard Deviation")
