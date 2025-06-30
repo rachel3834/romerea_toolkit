@@ -26,7 +26,7 @@ with fits.open(crossmatch_path) as hdul:
     filter_array = hdul["IMAGES"].data["filter"]  # (n_obs,)
 
 #limiting to valid data only
-min_total_obs = 20
+min_total_obs = 140
 valid_obs_per_star = np.sum((raw_data[:, :, QC_COL] == 0) & (raw_data[:, :, MAG_COL] > 0), axis=1)
 valid_mask = valid_obs_per_star >= min_total_obs
 valid_indices = np.where(valid_mask)[0]
@@ -141,7 +141,7 @@ for kind in ["const", "var"]:
             filt_mask = filter_array == flt
             star = raw_data[idx, filt_mask, :]
             good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > 0)
-            if np.sum(good) < 50:
+            if np.sum(good) < 150:
                 all_filters_ok = False
                 break
         if all_filters_ok:
