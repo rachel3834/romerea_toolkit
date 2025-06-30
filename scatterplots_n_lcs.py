@@ -165,9 +165,12 @@ for kind, idx in example_stars.items():
         filt_mask = filter_array == flt
         star = raw_data[idx, filt_mask, :]
         good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > 0)
+        if np.sum(good) < min_measurements[flt]:
+            print(f"Skipping star {idx} in filter {flt}: not enough points.")
+            continue
+
         hjd = star[good, HJD_COL]
         mag = star[good, MAG_COL]
-
         sort = np.argsort(hjd)
         hjd = hjd[sort]
         mag = mag[sort]
