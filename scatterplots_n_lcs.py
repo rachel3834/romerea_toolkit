@@ -140,7 +140,7 @@ for kind in ["const", "var"]:
         for flt in filters:
             filt_mask = filter_array == flt
             star = raw_data[idx, filt_mask, :]
-            good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > -100)
+            good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > 0)
             if np.sum(good) < 50:
                 all_filters_ok = False
                 break
