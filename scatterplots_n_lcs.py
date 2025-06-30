@@ -109,27 +109,52 @@ for flt in filters:
     
     print(f"Saving scatterplot per filter for filter {flt} to {output_dir}!")
 
-#match stars
-const_common = set.intersection(*[set(v) for v in examples["const"].values() if isinstance(v, list)])
-var_common = set.intersection(*[set(v) for v in examples["var"].values() if isinstance(v, list)])
+#now getting individual stars to make lcs
+examples = {"const": {}, "var": {}}
 
-example_stars = {
-    "const": next(iter(const_common)) if const_common else None,
-    "var": next(iter(var_common)) if var_common else None
-}
+for flt in filters:
+    txt_path = os.path.join(output_dir, f"variability_std_mean_{flt}.txt")
+    if not os.path.exists(txt_path):
+        continue
+    const_ids = []
+    var_ids = []
+    with open(txt_path, "r") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        for row in reader:
+            if row["is_variable"] == "1":
+                var_ids.append(int(row["star_index"]))
+            else:
+                const_ids.append(int(row["star_index"]))
+    examples["const"][flt] = const_ids
+    examples["var"][flt] = var_ids
 
-for kind, idx in example_stars.items():
+# now finding common stars meeting reqs
+filtered_examples = {"const": None, "var": None}
+
+for kind in ["const", "var"]:
+    commons = set.intersection(*[set(v) for v in examples[kind].values() if v])
+    for idx in commons:
+        all_filters_ok = True
+        for flt in filters:
+            filt_mask = filter_array == flt
+            star = raw_data[idx, filt_mask, :]
+            good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > -100)
+            if np.sum(good) < 50:
+                all_filters_ok = False
+                break
+        if all_filters_ok:
+            filtered_examples[kind] = idx
+            break
+
+#plot GOOD example stars ONLY
+for kind, idx in filtered_examples.items():
     if idx is None:
+        print(f"No {kind} star found with ≥50 points in each filter.")
         continue
     for flt in filters:
         filt_mask = filter_array == flt
         star = raw_data[idx, filt_mask, :]
-        good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > 0)
-
-        if np.sum(good) < 50:
-            print(f"Skipping {kind} star {idx} in filter {flt} because too few measurements; only {np.sum(good)} points.")
-            continue
-        
+        good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > -100)
         hjd = star[good, HJD_COL]
         mag = star[good, MAG_COL]
 
