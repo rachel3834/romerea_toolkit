@@ -147,9 +147,13 @@ for flt in filters:
     examples["var"][flt] = var_ids
 
 
-#now finding common stars
-const_common = set.intersection(*[set(v) for v in examples["const"].values() if isinstance(v, list)])
-var_common = set.intersection(*[set(v) for v in examples["var"].values() if isinstance(v, list)])
+#now finding common stars (making sure they're non-empty lists)
+const_sets = [set(v) for v in examples["const"].values() if isinstance(v, list) and v]
+const_common = set.intersection(*const_sets) if const_sets else set()
+
+var_sets = [set(v) for v in examples["var"].values() if isinstance(v, list) and v]
+var_common = set.intersection(*var_sets) if var_sets else set()
+
 
 example_stars = {
     "const": next(iter(const_common)) if const_common else None,
