@@ -111,8 +111,8 @@ for flt in filters:
     is_var_sorted = var_mask[sort_idx]
 
     plt.figure(figsize=(8, 6), dpi=300)
-    plt.scatter(x[~is_var_sorted], y[~is_var_sorted], s=5, label="Constant", alpha=0.7)
-    plt.scatter(x[is_var_sorted], y[is_var_sorted], s=5, color="orange", label="Variable", alpha=0.7)
+    plt.scatter(x[~is_var_sorted], y[~is_var_sorted], s=5, label="Constant", alpha=0.3)
+    plt.scatter(x[is_var_sorted], y[is_var_sorted], s=5, color="orange", label="Variable", alpha=0.3)
     plt.plot(x, yfit, 'g-', label="Best-fit")
     plt.plot(x, upper, 'r--', label="±0.3 threshold")
     plt.plot(x, lower, 'r--')
