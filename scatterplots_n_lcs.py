@@ -25,13 +25,29 @@ n_stars, n_obs, _ = raw_data.shape
 with fits.open(crossmatch_path) as hdul:
     filter_array = hdul["IMAGES"].data["filter"]  # (n_obs,)
 
-#limiting to valid data only
-min_total_obs = 140
-valid_obs_per_star = np.sum((raw_data[:, :, QC_COL] == 0) & (raw_data[:, :, MAG_COL] > 0), axis=1)
-valid_mask = valid_obs_per_star >= min_total_obs
-valid_indices = np.where(valid_mask)[0]
+#per-filter min
+filters = ["rp", "gp", "ip"]
+min_measurements = {"ip": 1200, "gp": 150, "rp": 150}
+filter_masks = {flt: (filter_array == flt) for flt in filters}
 
-# matching index master txt file
+#now naming and applying filter-specific measurement #, magnitude, and qc_flag validity
+per_filter_valid = {flt: [] for flt in filters}
+
+for flt in filters:
+    filt_mask = filter_masks[flt]
+    for i in range(n_stars):
+        star = raw_data[i, filt_mask, :]
+        good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > 0)
+        per_filter_valid[flt].append(np.sum(good) >= min_measurements[flt])
+
+#now combining masks so we only get stars that meet EVERY filter criteria simultaneously
+combined_valid_mask = np.logical_and.reduce([
+    np.array(per_filter_valid[flt]) for flt in filters
+])
+
+valid_indices = np.where(combined_valid_mask)[0]
+
+#overall index for star matching
 with open(os.path.join(output_dir, "valid_star_indices.txt"), "w") as f:
     for idx in valid_indices:
         f.write(f"{idx}\n")
@@ -141,7 +157,7 @@ for kind in ["const", "var"]:
             filt_mask = filter_array == flt
             star = raw_data[idx, filt_mask, :]
             good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > 0)
-            if np.sum(good) < 150:
+            if np.sum(good) < 160:
                 all_filters_ok = False
                 break
         if all_filters_ok:
