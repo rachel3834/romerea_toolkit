@@ -146,26 +146,18 @@ for flt in filters:
     examples["const"][flt] = const_ids
     examples["var"][flt] = var_ids
 
-# now finding common stars meeting reqs
-filtered_examples = {"const": None, "var": None}
 
-for kind in ["const", "var"]:
-    commons = set.intersection(*[set(v) for v in examples[kind].values() if v])
-    for idx in commons:
-        all_filters_ok = True
-        for flt in filters:
-            filt_mask = filter_array == flt
-            star = raw_data[idx, filt_mask, :]
-            good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > 0)
-            if np.sum(good) < 160:
-                all_filters_ok = False
-                break
-        if all_filters_ok:
-            filtered_examples[kind] = idx
-            break
+#now finding common stars
+const_common = set.intersection(*[set(v) for v in examples["const"].values() if isinstance(v, list)])
+var_common = set.intersection(*[set(v) for v in examples["var"].values() if isinstance(v, list)])
+
+example_stars = {
+    "const": next(iter(const_common)) if const_common else None,
+    "var": next(iter(var_common)) if var_common else None
+}
 
 #plot GOOD example stars ONLY
-for kind, idx in filtered_examples.items():
+for kind, idx in example_stars.items():
     if idx is None:
         print(f"No {kind} star found with ≥50 points in each filter.")
         continue
