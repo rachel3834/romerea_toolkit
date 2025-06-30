@@ -27,7 +27,7 @@ with fits.open(crossmatch_path) as hdul:
 
 #per-filter min
 filters = ["rp", "gp", "ip"]
-min_measurements = {"ip": 1200, "gp": 150, "rp": 150}
+min_measurements = {"ip": 800, "gp": 140, "rp": 140}
 filter_masks = {flt: (filter_array == flt) for flt in filters}
 
 #now naming and applying filter-specific measurement #, magnitude, and qc_flag validity
@@ -163,7 +163,7 @@ example_stars = {
 #plot GOOD example stars ONLY
 for kind, idx in example_stars.items():
     if idx is None:
-        print(f"No {kind} star found with ≥50 points in each filter.")
+        print(f"No {kind} star found with enough points in each filter.")
         continue
     for flt in filters:
         filt_mask = filter_array == flt
