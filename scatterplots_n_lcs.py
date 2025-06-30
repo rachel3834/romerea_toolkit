@@ -119,8 +119,13 @@ for flt in filters:
             examples.setdefault("var", []).append(random.choice(var_ids))
 
 #making sure it's the SAME STAR across filters
-const_common = set.intersection(*map(set, examples.get("const", []))) if "const" in examples else set()
-var_common = set.intersection(*map(set, examples.get("var", []))) if "var" in examples else set()
+
+#since examples["const"] is a list of integers, need to turn each integer into a set before set.intersection
+const_lists = examples.get('const', [])
+var_lists = examples.get('var', [])
+
+const_common = set(const_lists) if const_lists else set()
+var_common = set(var_lists) if var_lists else set()
 
 example_stars = {
     "const": next(iter(const_common)) if const_common else None,
