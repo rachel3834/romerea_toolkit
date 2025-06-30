@@ -21,20 +21,20 @@ with h5py.File(hdf5_path, "r") as f:
 
 n_stars, n_obs, _ = raw_data.shape
 
-# Load filter data from crossmatch
+# filter data from images table
 with fits.open(crossmatch_path) as hdul:
     filter_array = hdul["IMAGES"].data["filter"]  # (n_obs,)
 
-# Step 1: Determine which stars have valid data
-valid_mask = np.array([np.any((raw_data[i, :, QC_COL] == 0) & (raw_data[i, :, MAG_COL] > -100)) for i in range(n_stars)])
+#limiting to valid data only
+valid_mask = np.array([np.any((raw_data[i, :, QC_COL] == 0) & (raw_data[i, :, MAG_COL] > -0)) for i in range(n_stars)])
 valid_indices = np.where(valid_mask)[0]
 
-# Step 2: Save master index list for matching across filters
+# matching index master txt file
 with open(os.path.join(output_dir, "valid_star_indices.txt"), "w") as f:
     for idx in valid_indices:
         f.write(f"{idx}\n")
 
-# Step 3: Process each filter with filter-specific QC and mag filtering
+# process PER Filter
 filters = ["rp", "gp", "ip"]
 
 examples = {"const": {}, "var": {}}
@@ -49,7 +49,7 @@ for flt in filters:
 
     for i in valid_indices:
         star = raw_data[i, filt_mask, :]
-        good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > -100)
+        good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > 0)
         mags = star[good, MAG_COL]
         if len(mags) > 0:
             mean_mag = np.mean(mags)
@@ -80,7 +80,6 @@ for flt in filters:
             writer.writerow([idx, m, s, int(v)])
     print(f"Saved stats to {txt_path}")
 
-    # Save for example LC matching
     examples["const"][flt] = indices[~var_mask].tolist()
     examples["var"][flt] = indices[var_mask].tolist()
 
@@ -107,8 +106,10 @@ for flt in filters:
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"field20_quad4_{flt}_var_plot.png"))
     plt.close()
+    
+    print(f"Saving scatterplot per filter for filter {flt} to {output_dir}!")
 
-# Step 4: Find matching example stars across filters
+#match stars
 const_common = set.intersection(*[set(v) for v in examples["const"].values() if isinstance(v, list)])
 var_common = set.intersection(*[set(v) for v in examples["var"].values() if isinstance(v, list)])
 
@@ -123,7 +124,7 @@ for kind, idx in example_stars.items():
     for flt in filters:
         filt_mask = filter_array == flt
         star = raw_data[idx, filt_mask, :]
-        good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > -100)
+        good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > 0)
         hjd = star[good, HJD_COL]
         mag = star[good, MAG_COL]
 
@@ -140,3 +141,5 @@ for kind, idx in example_stars.items():
         plt.tight_layout()
         plt.savefig(os.path.join(output_dir, f"{kind}_star{idx}_filter_{flt}.png"))
         plt.close()
+
+        print(f"Saved lightcurve for Star {idx} in filter {flt} to {output_dir}!")
