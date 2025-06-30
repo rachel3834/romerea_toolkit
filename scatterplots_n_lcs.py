@@ -27,7 +27,7 @@ with fits.open(crossmatch_path) as hdul:
 
 #per-filter min
 filters = ["rp", "gp", "ip"]
-min_measurements = {"ip": 800, "gp": 140, "rp": 140}
+min_measurements = {"ip": 150, "gp": 100, "rp": 100}
 filter_masks = {flt: (filter_array == flt) for flt in filters}
 
 #now naming and applying filter-specific measurement #, magnitude, and qc_flag validity
