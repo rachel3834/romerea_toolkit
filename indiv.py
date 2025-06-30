@@ -50,12 +50,16 @@ for flt, path in info_files.items():
 
 #picking 1 const and 1 var star that appears in ALL THREE FILTERS
 common_consts = set(star_info["rp"][0][~star_info["rp"][1]]) \
-    & set(star_info["gp"][0][~star_info["gp"][1]]) \
-    & set(star_info["ip"][0][~star_info["ip"][1]])
+
+    #print("common_consts")
+    #& set(star_info["gp"][0][~star_info["gp"][1]]) \
+   # & set(star_info["ip"][0][~star_info["ip"][1]])
 
 common_vars = set(star_info["rp"][0][star_info["rp"][1]]) \
-    & set(star_info["gp"][0][star_info["gp"][1]]) \
-    & set(star_info["ip"][0][star_info["ip"][1]])
+    #& set(star_info["gp"][0][star_info["gp"][1]]) \
+   #& set(star_info["ip"][0][star_info["ip"][1]])
+
+#sets intersection func (set.intersection[another_set])... try logic on array
 
 if not common_consts or not common_vars:
     raise ValueError("Couldn'ty find stars present as constant/variable in all filters.")
