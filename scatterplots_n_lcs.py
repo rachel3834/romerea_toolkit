@@ -26,7 +26,9 @@ with fits.open(crossmatch_path) as hdul:
     filter_array = hdul["IMAGES"].data["filter"]  # (n_obs,)
 
 #limiting to valid data only
-valid_mask = np.array([np.any((raw_data[i, :, QC_COL] == 0) & (raw_data[i, :, MAG_COL] > -0)) for i in range(n_stars)])
+min_total_obs = 20
+valid_obs_per_star = np.sum((raw_data[:, :, QC_COL] == 0) & (raw_data[:, :, MAG_COL] > 0), axis=1)
+valid_mask = valid_obs_per_star >= min_total_obs
 valid_indices = np.where(valid_mask)[0]
 
 # matching index master txt file
@@ -154,7 +156,7 @@ for kind, idx in filtered_examples.items():
     for flt in filters:
         filt_mask = filter_array == flt
         star = raw_data[idx, filt_mask, :]
-        good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > -100)
+        good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > 0)
         hjd = star[good, HJD_COL]
         mag = star[good, MAG_COL]
 
