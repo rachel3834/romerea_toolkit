@@ -125,6 +125,11 @@ for kind, idx in example_stars.items():
         filt_mask = filter_array == flt
         star = raw_data[idx, filt_mask, :]
         good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > 0)
+
+        if np.sum(good) < 50:
+            print(f"Skipping {kind} star {idx} in filter {flt} because too few measurements; only {np.sum(good)} points.")
+            continue
+        
         hjd = star[good, HJD_COL]
         mag = star[good, MAG_COL]
 
