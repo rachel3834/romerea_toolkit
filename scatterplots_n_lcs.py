@@ -93,11 +93,13 @@ for flt in filters:
     var_mask = stds > upper_thresh
 
     txt_path = os.path.join(output_dir, f"variability_std_mean_{flt}.txt")
-    with open(txt_path, "w") as f:
-        f.write("# star_index mean_mag std_mag is_variable\n")
+    with open(txt_path, "w", newline='') as f:
+        writer = csv.writer(f, delimiter=" ")
+        writer.writerow(["star_index", "mean_mag", "std_mag", "is_variable"])
         for idx, m, s, v in zip(indices, means, stds, var_mask):
-            f.write(f"{idx} {m:.6f} {s:.6f} {int(v)}\n")
+            writer.writerow([idx, f"{m:.6f}", f"{s:.6f}", int(v)])
     print(f"Saved stats to {txt_path}")
+
 
     examples["const"][flt] = indices[~var_mask].tolist()
     examples["var"][flt] = indices[var_mask].tolist()
@@ -138,7 +140,7 @@ for flt in filters:
     const_ids = []
     var_ids = []
     with open(txt_path, "r") as f:
-        reader = csv.DictReader(f, delimiter="\t")
+        reader = csv.DictReader(f, delimiter=" ")
         for row in reader:
             if row["is_variable"] == "1":
                 var_ids.append(int(row["star_index"]))
