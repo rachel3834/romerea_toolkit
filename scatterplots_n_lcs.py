@@ -178,12 +178,12 @@ for kind, idx in example_stars.items():
         hjd = star[good, HJD_COL]
         mag = star[good, MAG_COL]
         errs = star[good, MAG_ERR_COL]
+        photometry = star[good]
+
         sort = np.argsort(hjd)
         hjd = hjd[sort]
         mag = mag[sort]
         errs = errs[sort]
-
-        photometry = star[good]
         photometry = photometry[sort]
 
         #saving all photometry columns for chosen stars in txt file
