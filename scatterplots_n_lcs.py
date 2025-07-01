@@ -195,7 +195,9 @@ for kind, idx in example_stars.items():
         #saving all photometry columns for chosen stars in txt file
         full_phot_file = os.path.join(output_dir, f"{kind}_star_{idx}_filter_{flt}_photometry_cols.txt")
         header = "HJD Inst_Mag Inst_Mag_Err Calib_Mag Calib_Mag_Err Corr_Mag Corr_Mag_Err Norm_Mag Norm_Mag_Err Phot_Scale Phot_Scale_Err Stamp_Idx Sky_Bkgd Sky_Bkgd_Err Residual_X Residual_Y QC_Flag Field_ID"
-        photometry_with_field = np.column_stack([photometry, np.full((photometry.shape[0], 1), field_ids_array[idx])])
+        obs_field_ids = field_ids_array[filt_mask][good][sort]
+        photometry_with_field = np.column_stack([photometry, obs_field_ids.reshape(-1, 1)])
+
         
         print(f"photometry shape: {photometry.shape}")
         try:
