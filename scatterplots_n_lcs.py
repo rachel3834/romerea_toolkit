@@ -25,7 +25,7 @@ n_stars, n_obs, _ = raw_data.shape
 # filter data from images table
 with fits.open(crossmatch_path) as hdul:
     filter_array = hdul["IMAGES"].data["filter"]  # (n_obs,)
-    field_ids = hdul["FIELD_INDDEX"].data["field_id"]
+    field_ids = hdul["FIELD_INDEX"].data["field_id"]
 
 #per-filter min
 filters = ["rp", "gp", "ip"]
