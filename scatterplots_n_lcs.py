@@ -176,7 +176,7 @@ for kind, idx in example_stars.items():
 
         hjd = star[good, HJD_COL]
         mag = star[good, MAG_COL]
-        err = star[good, MAG_ERR_COL]
+        errs = star[good, MAG_ERR_COL]
         sort = np.argsort(hjd)
         hjd = hjd[sort]
         mag = mag[sort]
