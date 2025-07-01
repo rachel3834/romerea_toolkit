@@ -25,7 +25,16 @@ n_stars, n_obs, _ = raw_data.shape
 # filter data from images table
 with fits.open(crossmatch_path) as hdul:
     filter_array = hdul["IMAGES"].data["filter"]  # (n_obs,)
-    field_ids_array = hdul["FIELD_INDEX"].data["field_id"]
+    field_index_data = hdul["FIELD_INDEX"].data
+    all_field_ids = field_index_data["field_id"]
+    all_quad_ids = field_index_data["quad_id"]
+    all_star_indices = field_index_data["star_index"]
+
+    # Build a mapping: HDF5 index (quad 4) → field_id
+    hdf5_index_to_field_id = {}
+    for qid, sid, fid in zip(all_quad_ids, all_star_indices, all_field_ids):
+        if qid == QUAD_ID:
+            hdf5_index_to_field_id[sid] = fid
 
 #per-filter min
 filters = ["rp", "gp", "ip"]
@@ -79,7 +88,7 @@ for flt in filters:
             means.append(mean_mag)
             stds.append(std_mag)
             indices.append(i)
-            field_ids.append(field_ids_array[i])
+            field_ids.append(hdf5_index_to_field_id.get(i, -1))
             n_images.append(np.sum(good))
 
     means = np.array(means)
