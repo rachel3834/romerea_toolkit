@@ -13,6 +13,7 @@ os.makedirs(output_dir, exist_ok=True)
 
 MAG_COL = 7
 HJD_COL = 0
+MAG_ERR_COL = 8
 QC_COL = 16
 
 with h5py.File(hdf5_path, "r") as f:
@@ -175,12 +176,14 @@ for kind, idx in example_stars.items():
 
         hjd = star[good, HJD_COL]
         mag = star[good, MAG_COL]
+        err = star[good, MAG_ERR_COL]
         sort = np.argsort(hjd)
         hjd = hjd[sort]
         mag = mag[sort]
+        errs = errs[sort]
 
         plt.figure()
-        plt.plot(hjd, mag, '.-')
+        plt.errorbar(hjd, mag, yerr=errs, fmt='o', markersize=3, alpha=0.7)
         plt.gca().invert_yaxis()
         plt.xlabel("HJD")
         plt.ylabel("Normalized Mag")
