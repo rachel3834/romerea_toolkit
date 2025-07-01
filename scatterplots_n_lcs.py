@@ -25,7 +25,7 @@ n_stars, n_obs, _ = raw_data.shape
 # filter data from images table
 with fits.open(crossmatch_path) as hdul:
     filter_array = hdul["IMAGES"].data["filter"]  # (n_obs,)
-    field_ids = hdul["FIELD_INDEX"].data["field_id"]
+    field_ids_array = hdul["FIELD_INDEX"].data["field_id"]
 
 #per-filter min
 filters = ["rp", "gp", "ip"]
@@ -66,6 +66,8 @@ for flt in filters:
     stds = []
     is_var = []
     indices = []
+    field_ids = []
+    n_images = []
 
     for i in valid_indices:
         star = raw_data[i, filt_mask, :]
@@ -77,6 +79,8 @@ for flt in filters:
             means.append(mean_mag)
             stds.append(std_mag)
             indices.append(i)
+            field_ids.append(field_ids_array[i])
+            n_images.append(np.sum(good))
 
     means = np.array(means)
     stds = np.array(stds)
@@ -95,9 +99,9 @@ for flt in filters:
     txt_path = os.path.join(output_dir, f"variability_std_mean_{flt}.txt")
     with open(txt_path, "w", newline='') as f:
         writer = csv.writer(f, delimiter=" ")
-        writer.writerow(["star_index", "mean_mag", "std_mag", "is_variable"])
-        for idx, m, s, v in zip(indices, means, stds, var_mask):
-            writer.writerow([idx, f"{m:.6f}", f"{s:.6f}", int(v)])
+        writer.writerow(["star_index", "mean_mag", "std_mag", "is_variable", "field_id", "n_images"])
+        for idx, m, s, v, fid, nimg in zip(indices, means, stds, var_mask, field_ids, n_images):
+            writer.writerow([idx, f"{m:.6f}", f"{s:.6f}", int(v), fid, nimg])
     print(f"Saved stats to {txt_path}")
 
 
@@ -190,10 +194,12 @@ for kind, idx in example_stars.items():
 
         #saving all photometry columns for chosen stars in txt file
         full_phot_file = os.path.join(output_dir, f"{kind}_star_{idx}_filter_{flt}_photometry_cols.txt")
-        header = "HJD\tInst_Mag\tInst_Mag_Err\tCalib_Mag\tCalib_Mag_Err\tCorr_Mag\tCorr_Mag_Err\tNorm_Mag\tNorm_Mag_Err\tPhot_Scale\tPhot_Scale_Err\tStamp_Idx\tSky_Bkgd\tSky_Bkgd_Err\tResidual_X\tResidual_Y\tQC_Flag"
+        header = "HJD Inst_Mag Inst_Mag_Err Calib_Mag Calib_Mag_Err Corr_Mag Corr_Mag_Err Norm_Mag Norm_Mag_Err Phot_Scale Phot_Scale_Err Stamp_Idx Sky_Bkgd Sky_Bkgd_Err Residual_X Residual_Y QC_Flag Field_ID"
+        photometry_with_field = np.column_stack([photometry, np.full((photometry.shape[0], 1), field_ids_array[idx])])
+        
         print(f"photometry shape: {photometry.shape}")
         try:
-            np.savetxt(full_phot_file, photometry, fmt="%.6f", header=header, delimiter="\t")
+            np.savetxt(full_phot_file, photometry_with_field, fmt="%.6f", header=header, delimiter="\t")
             print(f"Saved star {idx} photometry data to a .txt file in {output_dir}!")
         except Exception as e:
             print(f"Failed to save txt: {e}")
