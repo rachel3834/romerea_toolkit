@@ -25,6 +25,7 @@ n_stars, n_obs, _ = raw_data.shape
 # filter data from images table
 with fits.open(crossmatch_path) as hdul:
     filter_array = hdul["IMAGES"].data["filter"]  # (n_obs,)
+    field_ids = hdul["FIELD_INDDEX"].data["field_id"]
 
 #per-filter min
 filters = ["rp", "gp", "ip"]
@@ -181,6 +182,14 @@ for kind, idx in example_stars.items():
         hjd = hjd[sort]
         mag = mag[sort]
         errs = errs[sort]
+
+        photometry = star[good]
+        photometry = photometry[sort]
+
+        #saving all photometry columns for chosen stars in txt file
+        full_phot_file = os.path.join(output_dir, f"{kind}_star_{idx}_filter_{flt}.txt")
+        header = "HJD\tInst_Mag\tInst_Mag_Err\tCalib_Mag\tCalib_Mag_Err\tCorr_Mag\tCorr_Mag_Err\tNorm_Mag\tNorm_Mag_Err\tPhot_Scale\tPhot_Scale_Err\tStamp_Idx\tSky_Bkgd\tSky_Bkgd_Err\tResidual_X\tResidual_Y\tQC_Flag"
+        np.savetxt(full_phot_file, photometry, fmt="%.6f", header=header, delimiter="\t")
 
         plt.figure()
         plt.errorbar(hjd, mag, yerr=errs, fmt='o', markersize=3, alpha=0.7)
