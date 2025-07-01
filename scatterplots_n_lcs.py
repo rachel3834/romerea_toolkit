@@ -180,7 +180,8 @@ for kind, idx in example_stars.items():
         errs = star[good, MAG_ERR_COL]
         photometry = star[good]
 
-        sort = np.argsort(hjd)
+
+        sort = np.argsort(photometry[:, HJD_COL])
         hjd = hjd[sort]
         mag = mag[sort]
         errs = errs[sort]
