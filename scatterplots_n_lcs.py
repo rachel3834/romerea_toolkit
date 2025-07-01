@@ -189,6 +189,7 @@ for kind, idx in example_stars.items():
         #saving all photometry columns for chosen stars in txt file
         full_phot_file = os.path.join(output_dir, f"{kind}_star_{idx}_filter_{flt}_photometry_cols.txt")
         header = "HJD\tInst_Mag\tInst_Mag_Err\tCalib_Mag\tCalib_Mag_Err\tCorr_Mag\tCorr_Mag_Err\tNorm_Mag\tNorm_Mag_Err\tPhot_Scale\tPhot_Scale_Err\tStamp_Idx\tSky_Bkgd\tSky_Bkgd_Err\tResidual_X\tResidual_Y\tQC_Flag"
+        print(f"photometry shape: {photometry.shape}")
         try:
             np.savetxt(full_phot_file, photometry, fmt="%.6f", header=header, delimiter="\t")
             print(f"Saved star {idx} photometry data to a .txt file in {output_dir}!")
