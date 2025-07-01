@@ -15,6 +15,8 @@ MAG_COL = 7
 HJD_COL = 0
 MAG_ERR_COL = 8
 QC_COL = 16
+QUAD_ID = 4
+FIELD = 20
 
 with h5py.File(hdf5_path, "r") as f:
     dset = f["dataset_photometry"]
@@ -27,7 +29,7 @@ with fits.open(crossmatch_path) as hdul:
     filter_array = hdul["IMAGES"].data["filter"]  # (n_obs,)
     field_index_data = hdul["FIELD_INDEX"].data
     all_field_ids = field_index_data["field_id"]
-    all_quad_ids = field_index_data["quad_id"]
+    all_quad_ids = field_index_data["quadrant_id"]
     all_star_indices = field_index_data["star_index"]
 
     # Build a mapping: HDF5 index (quad 4) → field_id
