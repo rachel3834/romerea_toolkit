@@ -94,8 +94,7 @@ for flt in filters:
 
     txt_path = os.path.join(output_dir, f"variability_std_mean_{flt}.txt")
     with open(txt_path, "w") as f:
-        with open(txt_path, "w") as f:
-            f.write("# star_index mean_mag std_mag is_variable\n")
+        f.write("# star_index mean_mag std_mag is_variable\n")
         for idx, m, s, v in zip(indices, means, stds, var_mask):
             f.write(f"{idx} {m:.6f} {s:.6f} {int(v)}\n")
     print(f"Saved stats to {txt_path}")
