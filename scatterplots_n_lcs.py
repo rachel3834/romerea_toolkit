@@ -94,10 +94,9 @@ for flt in filters:
 
     txt_path = os.path.join(output_dir, f"variability_std_mean_{flt}.txt")
     with open(txt_path, "w") as f:
-        writer = csv.writer(f, delimiter="\t")
-        writer.writerow(["star_index", "mean_mag", "std_mag", "is_variable"])
+        f.write("star_index\tmean_mag\tstd_mag\tis_variable\n")
         for idx, m, s, v in zip(indices, means, stds, var_mask):
-            writer.writerow([idx, m, s, int(v)])
+            f.write(f"{idx}\t{m:.6f}\t{s:.6f}\t{int(v)}\n")
     print(f"Saved stats to {txt_path}")
 
     examples["const"][flt] = indices[~var_mask].tolist()
