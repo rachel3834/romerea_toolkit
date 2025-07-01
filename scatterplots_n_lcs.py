@@ -34,9 +34,9 @@ with fits.open(crossmatch_path) as hdul:
 
     # Build a mapping: HDF5 index (quad 4) → field_id
     hdf5_index_to_field_id = {}
-    for qid, sid, fid in zip(all_quad_ids, all_star_indices, all_field_ids):
+    for qid, q_idx, f_id in zip(all_quad_ids, all_quad_ids, all_field_ids):
         if qid == QUAD_ID:
-            hdf5_index_to_field_id[sid] = fid
+            hdf5_index_to_field_id[q_idx] = f_id
 
 #per-filter min
 filters = ["rp", "gp", "ip"]
