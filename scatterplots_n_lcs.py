@@ -4,6 +4,7 @@ import h5py
 import os
 import csv
 from astropy.io import fits
+import random
 
 #setting my paths
 hdf5_path = "/data01/aschweitzer/software/photo_copies/ROME-FIELD-20_quad4_photometry.hdf5"
@@ -92,69 +93,67 @@ for flt in filters:
     plt.close()
     print(f"Saved RMS scatterplot for {flt}")
 
-np.random.seed(42) #so its reproduceable
 
-threshold_offset = 0.0001  #threshold ABOVE RMS to mark variable vs constant stars
+#now for part two:
+#loading one filter txt as a base to pick const/var stars from
+rms_file = os.path.join(output_dir, "variability_rms_rp.txt")
+threshold_offset = 0.0001
+const_ids = []
+var_ids = []
 
-for kind, num in [("const", 3), ("var", 3)]:
-    print(f"\nSelecting {num} {kind} stars per filter for plotting...")
-    for flt in filters:
-        #now loading in rms stats to sep const/var stars
-        rms_file = os.path.join(output_dir, f"variability_rms_{flt}.txt")
-        data_rows = []
-        with open(rms_file, "r") as f:
-            next(f)  # skip header
-            for line in f:
-                star_idx, mean_mag, rms, fit_rms, field_id, n_obs = line.split()
-                data_rows.append({
-                    "idx": int(star_idx),
-                    "mean_mag": float(mean_mag),
-                    "rms": float(rms),
-                    "fit_rms": float(fit_rms),
-                    "field_id": int(field_id),
-                    "n_obs": int(n_obs),
-                })
-        #now separating const and var stars
-        const_stars = [d for d in data_rows if d["rms"] <= d["fit_rms"] + threshold_offset]
-        var_stars = [d for d in data_rows if d["rms"] > d["fit_rms"] + threshold_offset]
-
-        chosen_stars = const_stars if kind == "const" else var_stars
-        if len(chosen_stars) == 0:
-            print(f"No {kind} stars found in filter {flt}")
-            continue
-        if len(chosen_stars) < num:
-            print(f"Only {len(chosen_stars)} {kind} stars available in {flt}, reducing number")
-            num_to_select = len(chosen_stars)
+#now reading this file
+with open(rms_file, "r") as f:
+    next(f)
+    for line in f:
+        star_idx, mean_mag, rms, fit_rms, field_id, n_obs = line.split()
+        star_idx = int(star_idx)
+        rms = float(rms)
+        fit_rms = float(fit_rms)
+        if rms <= fit_rms + threshold_offset:
+            const_ids.append(star_idx)
         else:
-            num_to_select = num
+            var_ids.append(star_idx)
 
-        selected = np.random.choice(chosen_stars, size=num_to_select, replace=False)
+#randomly picking three stars!
+random.seed(42)
+const_selected = random.sample(const_ids, 3)
+var_selected = random.sample(var_ids, 3)
 
-        for star in selected:
-            idx = star["idx"]
+all_selected = {"const": const_selected, "var": var_selected}
+print("Selected constant star indices:", const_selected)
+print("Selected variable star indices:", var_selected)
+
+#now plotting lcs
+for kind, ids in all_selected.items():
+    for idx in ids:
+        for flt in filters:
             fm = filter_masks[flt]
-            arr = data[idx,fm,:]
-            mask = (arr[:,QC_COL]==0)&(arr[:,MAG_COL]>0)
-            mags = arr[mask,MAG_COL]
-            hjd = arr[mask,HJD_COL]
-            errs = arr[mask,MAG_ERR_COL]
-            if mags.size==0: 
-                print(f"Star {idx} in filter {flt} has no good mags, skipping.")
+            arr = data[idx, fm, :]
+            mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0)
+            if np.sum(mask) == 0:
+                print(f"No good data for star {idx} in {flt}")
                 continue
-            med = np.median(mags)
-            mean = mags.mean()
-            o = np.argsort(hjd)
-            hjd, mags, errs = hjd[o], mags[o], errs[o]
 
-            #now plotting w/ med and mean lines
-            plt.figure(figsize=(6,4))
-            plt.errorbar(hjd, mags, yerr=errs, fmt='o', ms=3, alpha=0.6)
+            hjd = arr[mask, HJD_COL]
+            mag = arr[mask, MAG_COL]
+            err = arr[mask, MAG_ERR_COL]
+            med = np.median(mag)
+            mean = np.mean(mag)
+
+            sort = np.argsort(hjd)
+            hjd, mag, err = hjd[sort], mag[sort], err[sort]
+
+            plt.figure(figsize=(6, 4))
+            plt.errorbar(hjd, mag, yerr=err, fmt='o', ms=3, alpha=0.6)
             plt.axhline(med, color='red', linestyle='--', label='Median')
             plt.axhline(mean, color='green', linestyle=':', label='Mean')
             plt.gca().invert_yaxis()
-            plt.xlabel("HJD"); plt.ylabel("Mag")
-            plt.title(f"{kind.title()} star {idx} ({flt})")
-            plt.legend(); plt.tight_layout()
-            plt.savefig(os.path.join(output_dir,f"{kind}_star{idx}_{flt}_lc.png"))
+            plt.xlabel("HJD")
+            plt.ylabel("Mag")
+            plt.title(f"{kind.title()} Star {idx} in {flt}")
+            plt.legend()
+            plt.tight_layout()
+            savepath = os.path.join(output_dir, f"{kind}_star{idx}_{flt}_lc.png")
+            plt.savefig(savepath)
             plt.close()
-            print(f"Saved LC {kind} star {idx} in {flt}")
+            print(f"Saved LC: {savepath}")
