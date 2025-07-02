@@ -6,8 +6,8 @@ import csv
 from astropy.io import fits
 
 #setting my paths
-hdf5_path = "/data01/aschweitzer/.../ROME-FIELD-20_quad4_photometry.hdf5"
-crossmatch_path = "/data01/aschweitzer/.../ROME-FIELD-20_field_crossmatch.fits"
+hdf5_path = "/data01/aschweitzer/software/photo_copies/ROME-FIELD-20_quad4_photometry.hdf5"
+crossmatch_path = "/data01/aschweitzer/data/ROME/ROME-FIELD-20/ROME-FIELD-20_field_crossmatch.fits"
 output_dir = "CV_Lightcurves/Const_fits"
 os.makedirs(output_dir, exist_ok=True)
 
