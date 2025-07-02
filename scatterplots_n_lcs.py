@@ -3,233 +3,158 @@ import matplotlib.pyplot as plt
 import h5py
 import os
 import csv
-import random
 from astropy.io import fits
 
-hdf5_path = "/data01/aschweitzer/software/photo_copies/ROME-FIELD-20_quad4_photometry.hdf5"
+#setting my paths
+hdf5_path = "/data01/aschweitzer/.../ROME-FIELD-20_quad4_photometry.hdf5"
+crossmatch_path = "/data01/aschweitzer/.../ROME-FIELD-20_field_crossmatch.fits"
 output_dir = "CV_Lightcurves/Const_fits"
-crossmatch_path = "/data01/aschweitzer/data/ROME/ROME-FIELD-20/ROME-FIELD-20_field_crossmatch.fits"
 os.makedirs(output_dir, exist_ok=True)
 
+#defining column indices
 MAG_COL = 7
 HJD_COL = 0
 MAG_ERR_COL = 8
 QC_COL = 16
-QUAD_ID = 4
-FIELD = 20
+QUAD_ID = 4  # quadrant we're processing
 
+#now loading photometry in
 with h5py.File(hdf5_path, "r") as f:
-    dset = f["dataset_photometry"]
-    raw_data = dset[:]
+    data = f["dataset_photometry"][:]  # shape expected: (n_stars, n_obs, n_cols)
+n_stars, _, _ = data.shape
 
-n_stars, n_obs, _ = raw_data.shape
-
-# filter data from images table
+#now loading crossmatch tables
 with fits.open(crossmatch_path) as hdul:
-    filter_array = hdul["IMAGES"].data["filter"]  # (n_obs,)
-    field_index_data = hdul["FIELD_INDEX"].data
-    all_field_ids = field_index_data["field_id"]
-    all_quad_ids = field_index_data["quadrant_id"]
-    all_star_indices = field_index_data["index"]
+    images = hdul["IMAGES"].data
+    im_filters = images["filter"]  # shape: (n_obs,)
+    field_idx = hdul["FIELD_INDEX"].data
+    #map from (quadrant_id index in HDF5) → field_id index in field_index (crossmatch.fits)
+    mapping = {
+        row["quadrant_id"]: row["field_id"]
+        for row in field_idx
+        if row["quadrant"] == QUAD_ID
+    }
 
-    # Build a mapping: HDF5 index (quad 4) → field_id
-    hdf5_index_to_field_id = {}
-    for qid, q_idx, f_id in zip(all_quad_ids, all_quad_ids, all_field_ids):
-        if qid == QUAD_ID:
-            hdf5_index_to_field_id[q_idx] = f_id
+#setting filter configs
+filters = ["rp","gp","ip"]
+min_obs = {"rp":100,"gp":100,"ip":150}
+filter_masks = {flt: im_filters == flt for flt in filters}
 
-#per-filter min
-filters = ["rp", "gp", "ip"]
-min_measurements = {"ip": 150, "gp": 100, "rp": 100}
-filter_masks = {flt: (filter_array == flt) for flt in filters}
-
-#now naming and applying filter-specific measurement #, magnitude, and qc_flag validity
-per_filter_valid = {flt: [] for flt in filters}
-
+#limiting dataset to stars with at least min_obs in each filter
+valid = np.ones(n_stars, bool)
 for flt in filters:
-    filt_mask = filter_masks[flt]
-    for i in range(n_stars):
-        star = raw_data[i, filt_mask, :]
-        good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > 0)
-        per_filter_valid[flt].append(np.sum(good) >= min_measurements[flt])
+    fm = filter_masks[flt]
+    counts = [(data[i,fm,QC_COL]==0).sum() for i in range(n_stars)]
+    valid &= np.array(counts) >= min_obs[flt]
+valid_idx = np.where(valid)[0]
 
-#now combining masks so we only get stars that meet EVERY filter criteria simultaneously
-combined_valid_mask = np.logical_and.reduce([
-    np.array(per_filter_valid[flt]) for flt in filters
-])
-
-valid_indices = np.where(combined_valid_mask)[0]
-
-#overall index for star matching
-with open(os.path.join(output_dir, "valid_star_indices.txt"), "w") as f:
-    for idx in valid_indices:
-        f.write(f"{idx}\n")
-
-# process PER Filter
-filters = ["rp", "gp", "ip"]
-
-examples = {"const": {}, "var": {}}
-
+#now making RMS plot per filter
 for flt in filters:
-    filt_mask = filter_array == flt
+    fm = filter_masks[flt]
 
-    means = []
-    stds = []
-    is_var = []
-    indices = []
-    field_ids = []
-    n_images = []
+    stars = []
+    for i in valid_idx:
+        arr = data[i,fm,:]
+        mask = (arr[:,QC_COL]==0)&(arr[:,MAG_COL]>0)
+        if mask.sum()>0:
+            mags = arr[mask,MAG_COL]
+            med_mag = np.median(mags)
+            rms = np.sqrt(np.mean((mags-med_mag)**2))
+            mean_mag = mags.mean()
+            stars.append((i, mean_mag, rms, mapping.get(i,-1), mask.sum()))
 
-    for i in valid_indices:
-        star = raw_data[i, filt_mask, :]
-        good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > 0)
-        mags = star[good, MAG_COL]
-        if len(mags) > 0:
-            mean_mag = np.mean(mags)
-            std_mag = np.std(mags)
-            means.append(mean_mag)
-            stds.append(std_mag)
-            indices.append(i)
-            field_ids.append(hdf5_index_to_field_id.get(i, -1))
-            n_images.append(np.sum(good))
-
-    means = np.array(means)
-    stds = np.array(stds)
-    indices = np.array(indices)
-
-    if len(means) < 10:
-        print(f"Too few valid stars in filter {flt}, skipping...")
+    if len(stars)<10:
+        print(f"Skip {flt}: too few stars")
         continue
+    stars = np.array(stars, dtype=object)
+    idxs, means, rms_vals, fields, counts = zip(*stars)
+    means, rms_vals = np.array(means), np.array(rms_vals)
 
-    fit_poly = np.polyfit(means, stds, 2)
-    fit_fn = np.poly1d(fit_poly)
-    fit_vals = fit_fn(means)
-    upper_thresh = fit_vals + 0.3
-    var_mask = stds > upper_thresh
+    fit = np.poly1d(np.polyfit(means, rms_vals, 2))
+    fit_rms = fit(means)
 
-    txt_path = os.path.join(output_dir, f"variability_std_mean_{flt}.txt")
-    with open(txt_path, "w", newline='') as f:
-        writer = csv.writer(f, delimiter=" ")
-        writer.writerow(["star_index", "mean_mag", "std_mag", "is_variable", "field_id", "n_images"])
-        for idx, m, s, v, fid, nimg in zip(indices, means, stds, var_mask, field_ids, n_images):
-            writer.writerow([idx, f"{m:.6f}", f"{s:.6f}", int(v), fid, nimg])
-    print(f"Saved stats to {txt_path}")
+    out = sorted(zip(means, rms_vals, fit_rms, idxs, fields, counts), key=lambda x:x[0])
+    with open(os.path.join(output_dir,f"variability_rms_{flt}.txt"),"w") as f:
+        f.write("star_idx mean_mag RMS fit_rms field_id n_obs\n")
+        for m,r,fr,i,fid,nobs in out:
+            f.write(f"{i} {m:.4f} {r:.4f} {fr:.4f} {fid} {nobs}\n")
 
-
-    examples["const"][flt] = indices[~var_mask].tolist()
-    examples["var"][flt] = indices[var_mask].tolist()
-
-    # Plotting
-    sort_idx = np.argsort(means)
-    x = means[sort_idx]
-    y = stds[sort_idx]
-    yfit = fit_fn(x)
-    upper = yfit + 0.3
-    lower = yfit - 0.3
-    is_var_sorted = var_mask[sort_idx]
-
-    plt.figure(figsize=(8, 6), dpi=300)
-    plt.scatter(x[~is_var_sorted], y[~is_var_sorted], s=5, label="Constant", alpha=0.3)
-    plt.scatter(x[is_var_sorted], y[is_var_sorted], s=5, color="orange", label="Variable", alpha=0.3)
-    plt.plot(x, yfit, 'g-', label="Best-fit")
-    plt.plot(x, upper, 'r--', label="±0.3 threshold")
-    plt.plot(x, lower, 'r--')
-    plt.xlabel("Mean Magnitude")
-    plt.ylabel("Standard Deviation")
-    plt.title(f"Field 20, Quad 4: Filter {flt}")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, f"field20_quad4_{flt}_var_plot.png"))
+    x = np.array([o[0] for o in out])
+    y = np.array([o[1] for o in out])
+    yfit = np.array([o[2] for o in out])
+    plt.figure(figsize=(8,6), dpi=300)
+    plt.scatter(x, y, alpha=0.3, s=5, label="Stars")
+    plt.plot(x, yfit, 'g-', label="Best-fit RMS")
+    plt.xlabel("Mean Magnitude"); plt.ylabel("RMS")
+    plt.title(f"Field20 Quad4 — RMS vs Mag ({flt})")
+    plt.legend(); plt.grid(True); plt.tight_layout()
+    plt.savefig(os.path.join(output_dir,f"field20_quad4_{flt}_rms.png"))
     plt.close()
-    
-    print(f"Saving scatterplot per filter for filter {flt} to {output_dir}!")
+    print(f"Saved RMS scatterplot for {flt}")
 
-#now getting individual stars to make lcs
-examples = {"const": {}, "var": {}}
+np.random.seed(42) #so its reproduceable
 
-for flt in filters:
-    txt_path = os.path.join(output_dir, f"variability_std_mean_{flt}.txt")
-    if not os.path.exists(txt_path):
-        continue
-    const_ids = []
-    var_ids = []
-    with open(txt_path, "r") as f:
-        reader = csv.DictReader(f, delimiter=" ")
-        for row in reader:
-            if row["is_variable"] == "1":
-                var_ids.append(int(row["star_index"]))
-            else:
-                const_ids.append(int(row["star_index"]))
-    examples["const"][flt] = const_ids
-    examples["var"][flt] = var_ids
+threshold_offset = 0.0001  #threshold ABOVE RMS to mark variable vs constant stars
 
-
-#now finding common stars (making sure they're non-empty lists)
-const_sets = [set(v) for v in examples["const"].values() if isinstance(v, list) and v]
-const_common = set.intersection(*const_sets) if const_sets else set()
-
-var_sets = [set(v) for v in examples["var"].values() if isinstance(v, list) and v]
-var_common = set.intersection(*var_sets) if var_sets else set()
-
-
-example_stars = {
-    "const": next(iter(const_common)) if const_common else None,
-    "var": next(iter(var_common)) if var_common else None
-}
-
-#plot GOOD example stars ONLY
-for kind, idx in example_stars.items():
-    if idx is None:
-        print(f"No {kind} star found with enough points in each filter.")
-        continue
+for kind, num in [("const", 3), ("var", 3)]:
+    print(f"\nSelecting {num} {kind} stars per filter for plotting...")
     for flt in filters:
-        filt_mask = filter_array == flt
-        star = raw_data[idx, filt_mask, :]
-        good = (star[:, QC_COL] == 0) & (star[:, MAG_COL] > 0)
-        if np.sum(good) < min_measurements[flt]:
-            print(f"Skipping star {idx} in filter {flt}: not enough points.")
+        #now loading in rms stats to sep const/var stars
+        rms_file = os.path.join(output_dir, f"variability_rms_{flt}.txt")
+        data_rows = []
+        with open(rms_file, "r") as f:
+            next(f)  # skip header
+            for line in f:
+                star_idx, mean_mag, rms, fit_rms, field_id, n_obs = line.split()
+                data_rows.append({
+                    "idx": int(star_idx),
+                    "mean_mag": float(mean_mag),
+                    "rms": float(rms),
+                    "fit_rms": float(fit_rms),
+                    "field_id": int(field_id),
+                    "n_obs": int(n_obs),
+                })
+        #now separating const and var stars
+        const_stars = [d for d in data_rows if d["rms"] <= d["fit_rms"] + threshold_offset]
+        var_stars = [d for d in data_rows if d["rms"] > d["fit_rms"] + threshold_offset]
+
+        chosen_stars = const_stars if kind == "const" else var_stars
+        if len(chosen_stars) == 0:
+            print(f"No {kind} stars found in filter {flt}")
             continue
+        if len(chosen_stars) < num:
+            print(f"Only {len(chosen_stars)} {kind} stars available in {flt}, reducing number")
+            num_to_select = len(chosen_stars)
+        else:
+            num_to_select = num
 
-        hjd = star[good, HJD_COL]
-        mag = star[good, MAG_COL]
-        errs = star[good, MAG_ERR_COL]
-        photometry = star[good]
+        selected = np.random.choice(chosen_stars, size=num_to_select, replace=False)
 
+        for star in selected:
+            idx = star["idx"]
+            fm = filter_masks[flt]
+            arr = data[idx,fm,:]
+            mask = (arr[:,QC_COL]==0)&(arr[:,MAG_COL]>0)
+            mags = arr[mask,MAG_COL]
+            hjd = arr[mask,HJD_COL]
+            errs = arr[mask,MAG_ERR_COL]
+            if mags.size==0: 
+                print(f"Star {idx} in filter {flt} has no good mags, skipping.")
+                continue
+            med = np.median(mags)
+            mean = mags.mean()
+            o = np.argsort(hjd)
+            hjd, mags, errs = hjd[o], mags[o], errs[o]
 
-        sort = np.argsort(photometry[:, HJD_COL])
-        hjd = hjd[sort]
-        mag = mag[sort]
-        errs = errs[sort]
-        photometry = photometry[sort]
-
-        #saving all photometry columns for chosen stars in txt file
-        full_phot_file = os.path.join(output_dir, f"{kind}_star_{idx}_filter_{flt}_photometry_cols.txt")
-        header = "HJD Inst_Mag Inst_Mag_Err Calib_Mag Calib_Mag_Err Corr_Mag Corr_Mag_Err Norm_Mag Norm_Mag_Err Phot_Scale Phot_Scale_Err Stamp_Idx Sky_Bkgd Sky_Bkgd_Err Residual_X Residual_Y QC_Flag Field_ID"
-        filt_obs_indices = np.where(filt_mask)[0]               # obs indices for this filter
-        star_obs_indices = filt_obs_indices[good][sort]         # obs indices for this star
-        obs_field_ids = field_ids_array[star_obs_indices]       # field_ids per observation
-        photometry_with_field = np.column_stack([photometry, obs_field_ids.reshape(-1, 1)])
-
-        
-        print(f"photometry shape: {photometry.shape}")
-        try:
-            np.savetxt(full_phot_file, photometry_with_field, fmt="%.6f", header=header, delimiter="\t")
-            print(f"Saved star {idx} photometry data to a .txt file in {output_dir}!")
-        except Exception as e:
-            print(f"Failed to save txt: {e}")
-
-        print(f"{kind.title()} star {idx}, filter {flt}:")
-        print(f"Mag error stats — min: {np.nanmin(errs)}, max: {np.nanmax(errs)}, NaNs: {np.isnan(errs).sum()}")
-
-        plt.figure()
-        plt.errorbar(hjd, mag, yerr=errs, fmt='o', markersize=3, alpha=0.7)
-        plt.gca().invert_yaxis()
-        plt.xlabel("HJD")
-        plt.ylabel("Normalized Mag")
-        plt.title(f"{kind.title()} Star {idx} - Filter {flt}")
-        plt.tight_layout()
-        plt.savefig(os.path.join(output_dir, f"{kind}_star{idx}_filter_{flt}.png"))
-        plt.close()
-
-        print(f"Saved lightcurve for Star {idx} in filter {flt} to {output_dir}!")
+            #now plotting w/ med and mean lines
+            plt.figure(figsize=(6,4))
+            plt.errorbar(hjd, mags, yerr=errs, fmt='o', ms=3, alpha=0.6)
+            plt.axhline(med, color='red', linestyle='--', label='Median')
+            plt.axhline(mean, color='green', linestyle=':', label='Mean')
+            plt.gca().invert_yaxis()
+            plt.xlabel("HJD"); plt.ylabel("Mag")
+            plt.title(f"{kind.title()} star {idx} ({flt})")
+            plt.legend(); plt.tight_layout()
+            plt.savefig(os.path.join(output_dir,f"{kind}_star{idx}_{flt}_lc.png"))
+            plt.close()
+            print(f"Saved LC {kind} star {idx} in {flt}")
