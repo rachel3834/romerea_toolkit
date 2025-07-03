@@ -97,13 +97,16 @@ for flt in filters:
         for i,m,wm,we,r,fr,fid,nobs in out:
             f.write(f"{i} {m:.4f} {wm:.4f} {we:.4f} {r:.4f} {fr:.4f} {fid} {nobs}\n")
 
-    threshold = yfit + 0.0001 
-    is_variable = y > threshold
+  
 
     #now plotting the scatterplot using rms best-fit
-    x = np.array([o[0] for o in out])
+    x = np.array([o[4] for o in out])
     y = np.array([o[1] for o in out])
     yfit = np.array([o[2] for o in out])
+
+    up_threshold = yfit + 0.01
+    low_threshold = yfit - 0.01
+    is_variable = ((y > up_threshold) | (y < low_threshold))
 
     #check
     print("x values are {x}")
@@ -115,7 +118,7 @@ for flt in filters:
     plt.scatter(x[~is_variable], y[~is_variable], alpha=0.3, s=5, color="blue", label="Constant")
     plt.scatter(x[is_variable], y[is_variable], alpha=0.3, s=5, color="orange", label="Variable")
     plt.plot(x, yfit, 'g-', label="Best-fit RMS")
-    plt.xlabel("Mean Magnitude"); plt.ylabel("RMS")
+    plt.xlabel("RMS"); plt.ylabel("Mean Magnitude")
     plt.title(f"Field20 Quad4 — RMS vs Mag ({flt})")
     plt.legend(); plt.grid(True); plt.tight_layout()
     plt.savefig(os.path.join(output_dir,f"field20_quad4_{flt}_rms.png"))
