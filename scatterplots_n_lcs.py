@@ -132,7 +132,7 @@ var_ids = []
 with open(rms_file, "r") as f:
     next(f)
     for line in f:
-        star_idx, mean_mag, rms, fit_rms, field_id, n_obs = line.split()
+        star_idx, mean_mag, wmean, werror, rms, fit_rms, field_id, n_obs = line.split()
         star_idx = int(star_idx)
         rms = float(rms)
         fit_rms = float(fit_rms)
