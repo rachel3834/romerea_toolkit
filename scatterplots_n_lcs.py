@@ -141,10 +141,17 @@ with open(rms_file, "r") as f:
         else:
             var_ids.append(star_idx)
 
-#randomly picking three stars!
+#randomly picking up to three stars
 random.seed(42)
-const_selected = random.sample(const_ids, 3)
-var_selected = random.sample(var_ids, 3)
+
+const_selected = random.sample(const_ids, min(3, len(const_ids)))
+var_selected = random.sample(var_ids, min(3, len(var_ids)))
+
+if len(const_selected) < 3:
+    print(f"Warning: Only {len(const_selected)} constant star(s) available.")
+if len(var_selected) < 3:
+    print(f"Warning: Only {len(var_selected)} variable star(s) available.")
+
 
 #print which stars selected of each type
 all_selected = {"const": const_selected, "var": var_selected}
