@@ -93,7 +93,7 @@ for flt in filters:
     fit_rms = fit(means)
 
     #writing txt files per filter
-    out = sorted(zip(idxs, means, wmeans, werror, rms_vals, fit_rms, idxs, fields, counts), key=lambda x:x[0])
+    out = sorted(zip(idxs, means, wmeans, werrors, rms_vals, fit_rms, idxs, fields, counts), key=lambda x:x[0])
     with open(os.path.join(output_dir,f"variability_rms_{flt}.txt"),"w") as f:
         f.write("star_idx mean_mag wmean werr RMS fit_rms field_id n_obs\n")
         for i,m,wm,we,r,fr,i,fid,nobs in out:
