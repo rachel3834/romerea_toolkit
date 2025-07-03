@@ -56,26 +56,24 @@ for flt in filters:
 valid_idx = np.where(valid)[0]
 
 #now making RMS plot per filter
+
 for flt in filters:
     fm = filter_masks[flt]
 
-    for flt in filters:
-        fm = filter_masks[flt]
-
-        stars = []
-        for i in valid_idx:
-            arr = data[i,fm,:]
-            mask = (arr[:,QC_COL]==0)&(arr[:,MAG_COL]>0)
-            if mask.sum()>0: 
-                mags = arr[mask, MAG_COL]
-                err = arr[mask, MAG_ERR_COL]
-                err_sq_inv = 1.0 / (err * err)
-                wmean = (mags * err_sq_inv).sum() / (err_sq_inv.sum())
-                werror = np.sqrt(1.0 / (err_sq_inv.sum()))
-                dmags = mags - wmean
-                rms = np.sqrt((dmags**2 * err_sq_inv).sum() / (err_sq_inv.sum()))
-                mean_mag = mags.mean()
-                stars.append((i, mean_mag, wmean, werror, rms, mapping.get(i, -1), mask.sum()))
+    stars = []
+    for i in valid_idx:
+        arr = data[i,fm,:]
+        mask = (arr[:,QC_COL]==0)&(arr[:,MAG_COL]>0)
+        if mask.sum()>0: 
+            mags = arr[mask, MAG_COL]
+            err = arr[mask, MAG_ERR_COL]
+            err_sq_inv = 1.0 / (err * err)
+            wmean = (mags * err_sq_inv).sum() / (err_sq_inv.sum())
+            werror = np.sqrt(1.0 / (err_sq_inv.sum()))
+            dmags = mags - wmean
+            rms = np.sqrt((dmags**2 * err_sq_inv).sum() / (err_sq_inv.sum()))
+            mean_mag = mags.mean()
+            stars.append((i, mean_mag, wmean, werror, rms, mapping.get(i, -1), mask.sum()))
 
     #skip stars index < 10
     if len(stars)<10:
@@ -111,7 +109,6 @@ for flt in filters:
 
 
     plt.figure(figsize=(8,6), dpi=300)
-    plt.plot(x, )
     plt.scatter(x[~is_variable], y[~is_variable], alpha=0.3, s=5, color="blue", label="Constant")
     plt.scatter(x[is_variable], y[is_variable], alpha=0.3, s=5, color="orange", label="Variable")
     plt.plot(x, yfit, 'g-', label="Best-fit RMS")
