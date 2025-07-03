@@ -74,7 +74,7 @@ for flt in filters:
             rms = np.sqrt((dmags**2 * err_sq_inv).sum()/(err_sq_inv.sum()))
             mean_mag = mags.mean()
             std_mag = np.std(mags)
-            stars.append((i, mean_mag, rms, mapping.get(i,-1), mask.sum()))
+            stars.append((i, mean_mag, wmean, werror, rms, mapping.get(i,-1), mask.sum()))
 
     #skip stars index < 10
     if len(stars)<10:
