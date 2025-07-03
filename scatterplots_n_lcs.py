@@ -16,7 +16,7 @@ os.makedirs(output_dir, exist_ok=True)
 xmatch = crossmatch.CrossMatchTable()
 xmatch.load(crossmatch_path, log=None)
 
-
+phot_data = hd5_utils.read_phot_from_hd5_file(hdf5_path)
 
 #defining column indices
 MAG_COL = 7
@@ -56,7 +56,6 @@ for flt in filters:
 valid_idx = np.where(valid)[0]
 
 #now making RMS plot per filter
-
 for flt in filters:
     fm = filter_masks[flt]
 
@@ -64,26 +63,27 @@ for flt in filters:
     for i in valid_idx:
         arr = data[i,fm,:]
         mask = (arr[:,QC_COL]==0)&(arr[:,MAG_COL]>0)
-        if mask.sum()>0: 
-            mags = arr[mask, MAG_COL]
+        if mask.sum()>0:    
+            mags = arr[mask,MAG_COL]
             err = arr[mask, MAG_ERR_COL]
-            err_sq_inv = 1.0 / (err * err)
-            wmean = (mags * err_sq_inv).sum() / (err_sq_inv.sum())
-            werror = np.sqrt(1.0 / (err_sq_inv.sum()))
-            dmags = mags - wmean
-            rms = np.sqrt((dmags**2 * err_sq_inv).sum() / (err_sq_inv.sum()))
+            med_mag = np.median(mags)
+            err_sq_inv = 1.0/(err * err)
+            wmean = (mags * err_sq_inv).sum()/(err_sq_inv.sum())
+            werror = np.sqrt(1.0/(err_sq_inv.sum()))
+            dmags = mags - wmean #residuals
+            rms = np.sqrt((dmags**2 * err_sq_inv).sum()/(err_sq_inv.sum()))
             mean_mag = mags.mean()
-            stars.append((i, mean_mag, wmean, werror, rms, mapping.get(i, -1), mask.sum()))
+            std_mag = np.std(mags)
+            stars.append((i, mean_mag, rms, mapping.get(i,-1), mask.sum()))
 
     #skip stars index < 10
     if len(stars)<10:
         print(f"Skip {flt}: too few stars...")
         continue
-    
-    
     stars = np.array(stars, dtype=object)
     idxs, means, wmeans, werrors, rms_vals, fields, counts = zip(*stars)
     means, rms_vals = np.array(means), np.array(rms_vals)
+    stds = np.array(std_mag)
     
 
     #making a fit
@@ -93,21 +93,24 @@ for flt in filters:
     #writing txt files per filter
     out = sorted(zip(idxs, means, wmeans, werrors, rms_vals, fit_rms, idxs, fields, counts), key=lambda x:x[0])
     with open(os.path.join(output_dir,f"variability_rms_{flt}.txt"),"w") as f:
-        f.write("star_idx mean_mag wmean werr RMS fit_rms field_id n_obs\n")
-        for i,m,wm,we,r,fr,i,fid,nobs in out:
+        f.write("star_idx mean_mag wmean werror RMS fit_rms field_id n_obs\n")
+        for i,m,wm,we,r,fr,fid,nobs in out:
             f.write(f"{i} {m:.4f} {wm:.4f} {we:.4f} {r:.4f} {fr:.4f} {fid} {nobs}\n")
 
-
+    threshold = yfit + 0.0001 
+    is_variable = y > threshold
 
     #now plotting the scatterplot using rms best-fit
-    x = np.array([o[1] for o in out])
-    y = np.array([o[4] for o in out])
-    yfit = np.array([o[5] for o in out])
+    x = np.array([o[0] for o in out])
+    y = np.array([o[1] for o in out])
+    yfit = np.array([o[2] for o in out])
 
-    threshold = 0.03
-    is_variable = (y > (yfit + threshold)) | (y < (yfit - threshold))
+    #check
+    print("x values are {x}")
+    print("y values are {y}")
+    print("y values are {y_fit}")
 
-
+    
     plt.figure(figsize=(8,6), dpi=300)
     plt.scatter(x[~is_variable], y[~is_variable], alpha=0.3, s=5, color="blue", label="Constant")
     plt.scatter(x[is_variable], y[is_variable], alpha=0.3, s=5, color="orange", label="Variable")
@@ -132,25 +135,20 @@ var_ids = []
 with open(rms_file, "r") as f:
     next(f)
     for line in f:
-        star_idx, mean_mag, wmean, werror, rms, fit_rms, field_id, n_obs = line.split()
+        star_idx, mean_mag, wmeans, werrors, rms, fit_rms, field_id, n_obs = line.split()
         star_idx = int(star_idx)
         rms = float(rms)
         fit_rms = float(fit_rms)
-        if rms <= fit_rms + threshold:
+        y = arr[mask, MAG_COL]
+        if ((y <= wmeans + rms) | (y >= wmeans - rms)):
             const_ids.append(star_idx)
         else:
             var_ids.append(star_idx)
 
-#randomly picking up to three stars
+#randomly picking three stars!
 random.seed(42)
-
-const_selected = random.sample(const_ids, min(3, len(const_ids)))
-var_selected = random.sample(var_ids, min(3, len(var_ids)))
-
-if len(const_selected) < 3:
-    print(f"Warning: Only {len(const_selected)} constant star(s) available.")
-if len(var_selected) < 3:
-    print(f"Warning: Only {len(var_selected)} variable star(s) available.")
+const_selected = random.sample(const_ids, 3)
+var_selected = random.sample(var_ids, 3)
 
 #print which stars selected of each type
 all_selected = {"const": const_selected, "var": var_selected}
