@@ -104,7 +104,7 @@ for flt in filters:
     y = np.array([o[4] for o in out])
     yfit = np.array([o[5] for o in out])
 
-    threshold = 0.0000001
+    threshold = 0.03
     is_variable = (y > (yfit + threshold)) | (y < (yfit - threshold))
 
 
@@ -151,7 +151,6 @@ if len(const_selected) < 3:
     print(f"Warning: Only {len(const_selected)} constant star(s) available.")
 if len(var_selected) < 3:
     print(f"Warning: Only {len(var_selected)} variable star(s) available.")
-
 
 #print which stars selected of each type
 all_selected = {"const": const_selected, "var": var_selected}
