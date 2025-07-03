@@ -13,6 +13,8 @@ crossmatch_path = "/data01/aschweitzer/data/ROME/ROME-FIELD-20/ROME-FIELD-20_fie
 output_dir = "CV_Lightcurves/Const_fits"
 os.makedirs(output_dir, exist_ok=True)
 
+var_thresh = 0.03
+
 xmatch = crossmatch.CrossMatchTable()
 xmatch.load(crossmatch_path, log=None)
 
@@ -73,7 +75,7 @@ for flt in filters:
             dmags = mags - wmean #residuals
             rms = np.sqrt((dmags**2 * err_sq_inv).sum()/(err_sq_inv.sum()))
             mean_mag = mags.mean()
-            std_mag = np.std(mags)
+            std_mag = mags.std()
             stars.append((i, mean_mag, wmean, werror, rms, mapping.get(i,-1), mask.sum()))
 
     #skip stars index < 10
@@ -83,7 +85,7 @@ for flt in filters:
     stars = np.array(stars, dtype=object)
     idxs, means, wmeans, werrors, rms_vals, fields, counts = zip(*stars)
     means, rms_vals = np.array(means), np.array(rms_vals)
-    stds = np.array(std_mag)
+
     
 
     #making a fit
@@ -91,34 +93,34 @@ for flt in filters:
     fit_rms = fit(means)
 
     #writing txt files per filter
-    out = sorted(zip(idxs, means, wmeans, werrors, rms_vals, fit_rms, idxs, fields, counts), key=lambda x:x[0])
+    out = sorted(zip(idxs, means, wmeans, werrors, rms_vals, fit_rms, fields, counts), key=lambda x:x[0])
     with open(os.path.join(output_dir,f"variability_rms_{flt}.txt"),"w") as f:
         f.write("star_idx mean_mag wmean werror RMS fit_rms field_id n_obs\n")
-        for m,wm,we,r,i,fr,fid,nobs in out:
+        for i,m,wm,we,r,fr,fid,nobs in out:
             f.write(f"{i} {m:.4f} {wm:.4f} {we:.4f} {r:.4f} {fr:.4f} {fid} {nobs}\n")
 
   
 
     #now plotting the scatterplot using rms best-fit
-    x = np.array([o[4] for o in out])
-    y = np.array([o[1] for o in out])
-    yfit = np.array([o[2] for o in out])
+    x = np.array([o[1] for o in out])
+    y = np.array([o[4] for o in out])
+    yfit = np.array([o[5] for o in out])
 
-    up_threshold = yfit + 0.01
-    low_threshold = yfit - 0.01
+    up_threshold = yfit + var_thresh
+    low_threshold = yfit - var_thresh
     is_variable = ((y > up_threshold) | (y < low_threshold))
 
     #check
-    print("x values are {x}")
-    print("y values are {y}")
-    print("y values are {y_fit}")
+    print(f"x values are {x}")
+    print(f"y values are {y}")
+    print(f"y values are {yfit}")
 
     
     plt.figure(figsize=(8,6), dpi=300)
     plt.scatter(x[~is_variable], y[~is_variable], alpha=0.3, s=5, color="blue", label="Constant")
     plt.scatter(x[is_variable], y[is_variable], alpha=0.3, s=5, color="orange", label="Variable")
     plt.plot(x, yfit, 'g-', label="Best-fit RMS")
-    plt.xlabel("RMS"); plt.ylabel("Mean Magnitude")
+    plt.xlabel("RMS"); plt.ylabel("Mean Mag")
     plt.title(f"Field20 Quad4 — RMS vs Mag ({flt})")
     plt.legend(); plt.grid(True); plt.tight_layout()
     plt.savefig(os.path.join(output_dir,f"field20_quad4_{flt}_rms.png"))
@@ -142,16 +144,16 @@ with open(rms_file, "r") as f:
         star_idx = int(star_idx)
         rms = float(rms)
         fit_rms = float(fit_rms)
-        y = arr[mask, MAG_COL]
-        if ((y <= wmeans + rms) | (y >= wmeans - rms)):
+
+        if abs(rms - fit_rms) <= var_thresh:
             const_ids.append(star_idx)
         else:
             var_ids.append(star_idx)
 
 #randomly picking three stars!
 random.seed(42)
-const_selected = random.sample(const_ids, 3)
-var_selected = random.sample(var_ids, 3)
+const_selected = random.sample(const_ids, min(3, len(const_ids)))
+var_selected = random.sample(var_ids, min(3, len(var_ids)))
 
 #print which stars selected of each type
 all_selected = {"const": const_selected, "var": var_selected}
