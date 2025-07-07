@@ -13,7 +13,7 @@ crossmatch_path = "/data01/aschweitzer/data/ROME/ROME-FIELD-20/ROME-FIELD-20_fie
 output_dir = "CV_Lightcurves/Const_fits"
 os.makedirs(output_dir, exist_ok=True)
 
-var_thresh = 0.03
+var_thresh = 1.5
 
 xmatch = crossmatch.CrossMatchTable()
 xmatch.load(crossmatch_path, log=None)
@@ -106,21 +106,30 @@ for flt in filters:
     y = np.array([o[4] for o in out])
     yfit = np.array([o[5] for o in out])
 
-    up_threshold = yfit + var_thresh
-    low_threshold = yfit - var_thresh
-    is_variable = ((y > up_threshold) | (y < low_threshold))
+    
+    is_variable = np.abs(y - yfit) > var_thresh
 
     #check
     print(f"x values are {x}")
     print(f"y values are {y}")
     print(f"y values are {yfit}")
 
+    plt.hist(y - yfit, bins=50)
+    plt.axvline(0, color="k", linestyle="--")
+    plt.axvline(var_thresh, color="red", linestyle="--", label="Threshold")
+    plt.axvline(-var_thresh, color="red", linestyle="--")
+    plt.xlabel("RMS - Fit_RMS")
+    plt.title(f"Residuals: {flt}")
+    plt.legend()
+    plt.savefig(...)
+
+
     
     plt.figure(figsize=(8,6), dpi=300)
     plt.scatter(x[~is_variable], y[~is_variable], alpha=0.3, s=5, color="blue", label="Constant")
     plt.scatter(x[is_variable], y[is_variable], alpha=0.3, s=5, color="orange", label="Variable")
     plt.plot(x, yfit, 'g-', label="Best-fit RMS")
-    plt.xlabel("RMS"); plt.ylabel("Mean Mag")
+    plt.xlabel("Mean Mag"); plt.ylabel("RMS")
     plt.title(f"Field20 Quad4 — RMS vs Mag ({flt})")
     plt.legend(); plt.grid(True); plt.tight_layout()
     plt.savefig(os.path.join(output_dir,f"field20_quad4_{flt}_rms.png"))
