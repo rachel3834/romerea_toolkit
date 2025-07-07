@@ -68,12 +68,18 @@ for flt in filters:
         if mask.sum()>0:    
             mags = arr[mask,MAG_COL]
             err = arr[mask, MAG_ERR_COL]
+            if np.any(err <= 0):
+                continue  # skip bad errors so nan doesn't occur with err_sq_inv
+            
             med_mag = np.median(mags)
             err_sq_inv = 1.0/(err * err)
             wmean = (mags * err_sq_inv).sum()/(err_sq_inv.sum())
             werror = np.sqrt(1.0/(err_sq_inv.sum()))
             dmags = mags - wmean #residuals
+
             rms = np.sqrt((dmags**2 * err_sq_inv).sum()/(err_sq_inv.sum()))
+          
+
             mean_mag = mags.mean()
             std_mag = mags.std()
             stars.append((i, mean_mag, wmean, werror, rms, mapping.get(i,-1), mask.sum()))
@@ -89,7 +95,11 @@ for flt in filters:
     
 
     #making a fit
-    fit = np.poly1d(np.polyfit(means, rms_vals, 2))
+    mask_finite = np.isfinite(means) & np.isfinite(rms_vals)
+    means_clean = means[mask_finite]
+    rms_vals_clean = rms_vals[mask_finite]
+
+    fit = np.poly1d(np.polyfit(means_clean, rms_vals_clean, 2))
     fit_rms = fit(means)
 
     #writing txt files per filter
@@ -114,14 +124,23 @@ for flt in filters:
     print(f"y values are {y}")
     print(f"y values are {yfit}")
 
-    plt.hist(y - yfit, bins=50)
-    plt.axvline(0, color="k", linestyle="--")
-    plt.axvline(var_thresh, color="red", linestyle="--", label="Threshold")
-    plt.axvline(-var_thresh, color="red", linestyle="--")
-    plt.xlabel("RMS - Fit_RMS")
-    plt.title(f"Residuals: {flt}")
-    plt.legend()
-    plt.savefig(...)
+    residuals = y - yfit
+
+    if np.any(np.isnan(residuals)):
+        print("⚠️ NaNs found in residuals!")
+        print("y:", y)
+        print("yfit:", yfit)
+        print("residuals:", residuals)
+    else:
+        plt.hist(residuals, bins=50)
+        plt.axvline(0, color="k", linestyle="--")
+        plt.axvline(var_thresh, color="red", linestyle="--", label="Threshold")
+        plt.axvline(-var_thresh, color="red", linestyle="--")
+        plt.xlabel("RMS - Fit_RMS")
+        plt.title(f"Residuals: {flt}")
+        plt.legend()
+        plt.savefig(os.path.join(output_dir, f"field20_quad4_{flt}_residuals_hist.png"))
+
 
 
     
