@@ -142,12 +142,16 @@ for flt in filters:
         plt.savefig(os.path.join(output_dir, f"field20_quad4_{flt}_residuals_hist.png"))
 
 
+    sort_idx = np.argsort(x)
+    x_sorted = x[sort_idx]
+    yfit_sorted = yfit[sort_idx]
 
     
+
     plt.figure(figsize=(8,6), dpi=300)
-    plt.scatter(x[~is_variable], y[~is_variable], alpha=0.3, s=5, color="blue", label="Constant")
-    plt.scatter(x[is_variable], y[is_variable], alpha=0.3, s=5, color="orange", label="Variable")
-    plt.plot(x, yfit, 'g-', label="Best-fit RMS")
+    plt.scatter(x_sorted[~is_variable], y[~is_variable], alpha=0.3, s=5, color="steelblue", label="Constant")
+    plt.scatter(x_sorted[is_variable], y[is_variable], alpha=0.3, s=5, color="red", label="Variable")
+    plt.plot(x_sorted, yfit_sorted, 'g-', label="Best-fit RMS")
     plt.xlabel("Mean Mag"); plt.ylabel("RMS")
     plt.title(f"Field20 Quad4 — RMS vs Mag ({flt})")
     plt.legend(); plt.grid(True); plt.tight_layout()
@@ -212,7 +216,7 @@ for kind, ids in all_selected.items():
             
             #build plot and save
             plt.figure(figsize=(6, 4))
-            plt.errorbar(hjd, mag, yerr=err, fmt='o', ms=3, alpha=0.6)
+            plt.errorbar(hjd, mag, yerr=err, fmt='o', ms=3, alpha=0.3)
             plt.axhline(med, color='red', linestyle='--', label='Median')
             plt.axhline(mean, color='green', linestyle=':', label='Mean')
             plt.gca().invert_yaxis()
