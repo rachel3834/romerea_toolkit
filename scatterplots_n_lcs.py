@@ -149,8 +149,8 @@ for flt in filters:
     
 
     plt.figure(figsize=(8,6), dpi=300)
-    plt.scatter(x_sorted[~is_variable], y[~is_variable], alpha=0.3, s=5, color="steelblue", label="Constant")
-    plt.scatter(x_sorted[is_variable], y[is_variable], alpha=0.3, s=5, color="red", label="Variable")
+    plt.scatter(x[~is_variable], y[~is_variable], alpha=0.3, s=5, color="steelblue", label="Constant")
+    plt.scatter(x[is_variable], y[is_variable], alpha=0.3, s=5, color="red", label="Variable")
     plt.plot(x_sorted, yfit_sorted, 'g-', label="Best-fit RMS")
     plt.xlabel("Mean Mag"); plt.ylabel("RMS")
     plt.title(f"Field20 Quad4 — RMS vs Mag ({flt})")
