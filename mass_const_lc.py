@@ -4,6 +4,7 @@ import h5py
 import os
 from astropy.io import fits
 from romerea_toolkit import crossmatch, hd5_utils
+import random
 
 #paths
 hdf5_path = "/data01/aschweitzer/software/photo_copies/ROME-FIELD-20_quad4_photometry.hdf5"
@@ -64,7 +65,7 @@ with open(rms_file, "r") as f:
 
 np.random.seed(42)
 if len(const_ids) > 700:
-    const_ids = np.random.choice(const_ids, 700, replace=False)
+    const_ids = random.sample(const_ids, 700)
 
 for star_idx, field_id in const_ids:
     #now proceed to skip a star if it has invalid data in any filter
