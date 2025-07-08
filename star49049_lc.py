@@ -15,7 +15,18 @@ os.makedirs(output_dir, exist_ok=True)
 
 
 #listing star hjd (x-axis) range
-HJD_RANGE = (2.4578, 2.4581)
+base_hjd = 2_458_000.0
+
+def get_hjd_range_for_filter(flt):
+    if flt == "gp":
+        # gp is offset relative to base_hjd
+        return (-200, 100)
+    else:
+        # ip and rp use absolute HJD
+        return (2.4578e6, 2.4581e6)
+    
+
+
 
 #column numbers
 HJD_COL = 0
@@ -65,6 +76,8 @@ plt.figure(figsize=(8, 5))
 for flt in filters:
     mask = filter_masks[flt]
     star_data = data[star_idx, mask, :]
+
+
     
     #filtering out for quality
     valid = (star_data[:, QC_COL] == 0) & (star_data[:, MAG_COL] > 0)
@@ -72,8 +85,12 @@ for flt in filters:
     mag = star_data[valid, MAG_COL]
     err = star_data[valid, MAG_ERR_COL]
     
+    if flt == "gp":
+        hjd += base_hjd  # shift gp back again
+
     # HJD range mask
-    hjd_mask = (hjd >= HJD_RANGE[0]) & (hjd <= HJD_RANGE[1])
+    flt_range = get_hjd_range_for_filter(flt)
+    hjd_mask = (hjd >= flt_range[0]) & (hjd <= flt_range[1])
     hjd, mag, err = hjd[hjd_mask], mag[hjd_mask], err[hjd_mask]
 
     if len(hjd) == 0:
@@ -84,10 +101,10 @@ for flt in filters:
 plt.gca().invert_yaxis()
 plt.xlabel("HJD")
 plt.ylabel("Magnitude")
-plt.title(f"Field ID {target_field_id} — Lightcurve ({flt})")
+plt.title(f"Field ID {target_field_id} — Lightcurve (All filters)")
 plt.legend()
 plt.tight_layout()
-plt.savefig(os.path.join(output_dir, f"field{target_field_id}_{flt}_lc.png"))
+plt.savefig(os.path.join(output_dir, f"field{target_field_id}_combined_lc.png"))
 plt.close()
 print(f"Saved combined lightcurve for star {target_field_id}.")
 
@@ -100,8 +117,13 @@ for flt in filters:
     hjd = star_data[valid, HJD_COL]
     mag = star_data[valid, MAG_COL]
     err = star_data[valid, MAG_ERR_COL]
-    
-    hjd_mask = (hjd >= HJD_RANGE[0]) & (hjd <= HJD_RANGE[1])
+
+    if flt == "gp":
+        hjd += base_hjd  # shift gp back again
+
+    flt_range = get_hjd_range_for_filter(flt)
+    hjd_mask = (hjd >= flt_range[0]) & (hjd <= flt_range[1])
+
     hjd, mag, err = hjd[hjd_mask], mag[hjd_mask], err[hjd_mask]
 
     if len(hjd) == 0:
