@@ -15,7 +15,7 @@ os.makedirs(output_dir, exist_ok=True)
 #starting values
 var_thresh = 0.5
 filters = ["rp", "gp", "ip"]
-min_obs = {"rp": 100, "gp": 100, "ip": 150}
+min_obs = {"rp": 40, "gp": 40, "ip": 40}
 filter_colors = {"rp": "red", "gp": "green", "ip": "blue"}
 
 #columns
