@@ -127,7 +127,7 @@ for flt in filters:
     residuals = y - yfit
 
     if np.any(np.isnan(residuals)):
-        print("⚠️ NaNs found in residuals!")
+        print("nans found in residuals!")
         print("y:", y)
         print("yfit:", yfit)
         print("residuals:", residuals)
