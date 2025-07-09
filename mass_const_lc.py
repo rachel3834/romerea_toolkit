@@ -133,6 +133,7 @@ for star_idx, field_id in const_ids:
         sort = np.argsort(hjd)
         hjd, mag, err = hjd[sort], mag[sort], err[sort]
 
+        print(f"Now plotting star {star_idx} field number {field_id} in {flt}!")
         #plotting
         plt.figure(figsize=(6, 4))
         plt.errorbar(hjd, mag, yerr=err, fmt='o', ms=3, alpha=0.3, color=filter_colors[flt])
@@ -156,5 +157,7 @@ for star_idx, field_id in const_ids:
             "Norm_Mag Norm_Mag_Err Phot_Scale Phot_Scale_Err Stamp_Idx Sky_Bkgd "
             "Sky_Bkgd_Err Residual_X Residual_Y QC_Flag Field_ID"
         )
+        print(f"Now saving a txt of photometry for star {star_idx} field number {field_id} in {flt}!")
+
         txt_name = f"field{field_id}_const_star{star_idx}_{flt}_photometry.txt"
         np.savetxt(os.path.join(output_dir, txt_name), photometry_with_field, fmt="%.6f", header=header, delimiter="\t")
