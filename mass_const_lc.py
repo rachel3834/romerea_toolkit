@@ -153,6 +153,7 @@ for star_idx, field_id in const_ids:
             "Norm_Mag Norm_Mag_Err Phot_Scale Phot_Scale_Err Stamp_Idx Sky_Bkgd "
             "Sky_Bkgd_Err Residual_X Residual_Y QC_Flag Field_ID"
         )
+        print(f"Saving txt file in {flt} for star idx {star_idx} field id {field_id}!")
         txt_name = f"field{field_id}_const_star{star_idx}_{flt}_photometry.txt"
         np.savetxt(os.path.join(output_dir, txt_name), photometry_with_field, fmt="%.6f", header=header, delimiter="\t")
 
@@ -160,7 +161,10 @@ for star_idx, field_id in const_ids:
     plt.figure(figsize=(7, 5))
     for flt, hjd, mag, err in all_filter_data:
         plt.errorbar(hjd, mag, yerr=err, fmt='o', ms=3, alpha=0.4, color=filter_colors[flt], label=flt)
-
+        mean_mag = np.mean(mag)
+        plt.axhline(mean_mag, color=filter_colors[flt], linestyle='--',
+                    linewidth=1.2, alpha=0.6,
+                    label=f"{flt} mean = {mean_mag:.2f}")
     plt.gca().invert_yaxis()
     plt.xlabel("HJD")
     plt.ylabel("Magnitude")
