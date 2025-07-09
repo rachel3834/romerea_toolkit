@@ -56,12 +56,15 @@ if not os.path.exists(rms_file):
     raise FileNotFoundError(f"{rms_file} not found... Try running scatterplots_n_lcs.py first!")
 
 const_ids = []
+valid_set = set(valid_idx.tolist())
+
 with open(rms_file, "r") as f:
     next(f)
     for line in f:
         star_idx, mean_mag, wmeans, werrors, rms, fit_rms, field_id, n_obs = line.split()
-        if abs(float(rms) - float(fit_rms)) <= var_thresh:
-            const_ids.append((int(star_idx), int(field_id)))
+        star_idx = int(star_idx)
+        if abs(float(rms) - float(fit_rms)) <= var_thresh and star_idx in valid_set:
+            const_ids.append((star_idx, field_id))
 
 #now getting a random sample by binning by .5's
 from collections import defaultdict
@@ -77,7 +80,7 @@ with open(rms_file, "r") as f:
         star_idx = int(star_idx)
         field_id = int(field_id)
         mean_mag = float(mean_mag)
-        if abs(float(rms) - float(fit_rms)) <= var_thresh:
+        if abs(float(rms) - float(fit_rms)) <= var_thresh and star_idx in valid_set:
             bin_key = round(mean_mag / bin_width)* bin_width
             mag_bin_dict[bin_key].append((star_idx, field_id))
 
@@ -105,6 +108,7 @@ print(f"Selected {len(all_binned_ids)} constant stars!")
 
 const_ids = all_binned_ids
 
+
 for star_idx, field_id in const_ids:
     #now proceed to skip a star if it has invalid data in any filter
     skip = False
@@ -117,39 +121,31 @@ for star_idx, field_id in const_ids:
             break
     if skip:
         continue  #skip this star entirely
+   
+   
+   
+   #now to get all filter data....
+    all_filter_data = []
 
-    #now processing & saving star data for valid stars only
     for flt in filters:
         fm = filter_masks[flt]
         arr = data[star_idx, fm, :]
         mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0)
 
+        if np.sum(mask) == 0:
+            continue  #already checked for full data earlier
+
         hjd = arr[mask, HJD_COL]
         mag = arr[mask, MAG_COL]
         err = arr[mask, MAG_ERR_COL]
-        med = np.median(mag)
-        mean = np.mean(mag)
 
+        #sorting by HJD
         sort = np.argsort(hjd)
         hjd, mag, err = hjd[sort], mag[sort], err[sort]
 
-        print(f"Now plotting star {star_idx} field number {field_id} in {flt}!")
-        #plotting
-        plt.figure(figsize=(6, 4))
-        plt.errorbar(hjd, mag, yerr=err, fmt='o', ms=3, alpha=0.3, color=filter_colors[flt])
-        plt.axhline(med, color='red', linestyle='--', label='Median')
-        plt.axhline(mean, color='green', linestyle=':', label='Mean')
-        plt.gca().invert_yaxis()
-        plt.xlabel("HJD")
-        plt.ylabel("Mag")
-        plt.title(f"Field {field_id} — Const Star {star_idx} in {flt}")
-        plt.legend()
-        plt.tight_layout()
-        plot_name = f"field{field_id}_const_star{star_idx}_{flt}_lc.png"
-        plt.savefig(os.path.join(output_dir, plot_name))
-        plt.close()
+        all_filter_data.append((flt, hjd, mag, err))
 
-        #photometry txt save
+        #save photometry per each star per filter
         photometry = arr[mask]
         photometry_with_field = np.column_stack([photometry, np.full(len(photometry), field_id)])
         header = (
@@ -157,7 +153,21 @@ for star_idx, field_id in const_ids:
             "Norm_Mag Norm_Mag_Err Phot_Scale Phot_Scale_Err Stamp_Idx Sky_Bkgd "
             "Sky_Bkgd_Err Residual_X Residual_Y QC_Flag Field_ID"
         )
-        print(f"Now saving a txt of photometry for star {star_idx} field number {field_id} in {flt}!")
-
         txt_name = f"field{field_id}_const_star{star_idx}_{flt}_photometry.txt"
         np.savetxt(os.path.join(output_dir, txt_name), photometry_with_field, fmt="%.6f", header=header, delimiter="\t")
+
+    #now plotting 
+    plt.figure(figsize=(7, 5))
+    for flt, hjd, mag, err in all_filter_data:
+        plt.errorbar(hjd, mag, yerr=err, fmt='o', ms=3, alpha=0.4, color=filter_colors[flt], label=flt)
+
+    plt.gca().invert_yaxis()
+    plt.xlabel("HJD")
+    plt.ylabel("Magnitude")
+    plt.title(f"Field {field_id} — Const Star {star_idx} (All Filters)")
+    plt.legend()
+    plt.tight_layout()
+    plot_name = f"field{field_id}_const_star{star_idx}_ALL_lc.png"
+    print(f"Plotted star {star_idx} field id {field_id}")
+    plt.savefig(os.path.join(output_dir, plot_name))
+    plt.close()
