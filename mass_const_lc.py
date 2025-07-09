@@ -15,7 +15,7 @@ os.makedirs(output_dir, exist_ok=True)
 #starting values
 var_thresh = 0.5
 filters = ["rp", "gp", "ip"]
-min_obs = {"rp": 40, "gp": 40, "ip": 40}
+min_obs = {"rp": 100, "gp": 100, "ip": 100}
 filter_colors = {"rp": "red", "gp": "green", "ip": "blue"}
 
 #columns
@@ -63,9 +63,47 @@ with open(rms_file, "r") as f:
         if abs(float(rms) - float(fit_rms)) <= var_thresh:
             const_ids.append((int(star_idx), int(field_id)))
 
+#now getting a random sample by binning by .5's
+from collections import defaultdict
+
+#collecting stars with mean mags in bins of 0.5
+mag_bin_dict = defaultdict(list)
+bin_width = 0.5
+
+with open(rms_file, "r") as f:
+    next(f)
+    for line in f:
+        star_idx, mean_mag, wmeans, werrors, rms, fit_rms, field_id, n_obs = line.split()
+        star_idx = int(star_idx)
+        field_id = int(field_id)
+        mean_mag = float(mean_mag)
+        if abs(float(rms) - float(fit_rms)) <= var_thresh:
+            bin_key = round(mean_mag / bin_width)* bin_width
+            mag_bin_dict[bin_key].append((star_idx, field_id))
+
+#now want to randomly sample from each bin
+total_desired = 700
+all_binned_ids = []
+
+#how many stars per bin?
+n_bins = len(mag_bin_dict)
+per_bin = max(1, total_desired // n_bins)
+
 np.random.seed(42)
-if len(const_ids) > 700:
-    const_ids = random.sample(const_ids, 700)
+for bin_key, star_list in mag_bin_dict.items():
+    n_sample = min(per_bin, len(star_list))
+    sampled = random.sample(star_list, n_sample)
+    all_binned_ids.extend(sampled)
+
+
+#cut down to EXACT total desired (if needed)
+if len(all_binned_ids) > total_desired:
+    all_binned_ids = random.sample(all_binned_ids, total_desired)
+
+
+print(f"Selected {len(all_binned_ids)} constant stars!")
+
+const_ids = all_binned_ids
 
 for star_idx, field_id in const_ids:
     #now proceed to skip a star if it has invalid data in any filter
