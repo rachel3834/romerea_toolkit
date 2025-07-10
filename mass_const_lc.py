@@ -10,6 +10,7 @@ import random
 hdf5_path = "/data01/aschweitzer/software/photo_copies/ROME-FIELD-20_quad4_photometry.hdf5"
 crossmatch_path = "/data01/aschweitzer/data/ROME/ROME-FIELD-20/ROME-FIELD-20_field_crossmatch.fits"
 output_dir = "CV_Lightcurves/Const_fits"
+ogle_vars = "/data01/aschweitzer/software/CV_Lightcurves/Const_fits/ogle_var_ids/wget_ROME.bat"
 os.makedirs(output_dir, exist_ok=True)
 
 #starting values
@@ -17,6 +18,7 @@ var_thresh = 0.5
 filters = ["rp", "gp", "ip"]
 min_obs = {"rp": 100, "gp": 100, "ip": 100}
 filter_colors = {"rp": "red", "gp": "green", "ip": "blue"}
+rms_dicts = {"rp": {}, "gp": {}, "ip": {}}
 
 #columns
 HJD_COL = 0
@@ -42,13 +44,30 @@ n_stars, _, _ = data.shape
 #filter masks!
 filter_masks = {flt: im_filters == flt for flt in filters}
 
-#minimum # obs per filter
-valid = np.ones(n_stars, dtype=bool)
-for flt in filters:
+#minimum obs filter
+obs_matrix = np.zeros((n_stars, len(filters)), dtype=int)
+
+for j, flt in enumerate(filters):
     fm = filter_masks[flt]
-    counts = [(data[i, fm, QC_COL] == 0).sum() for i in range(n_stars)]
-    valid &= np.array(counts) >= min_obs[flt]
-valid_idx = np.where(valid)[0]
+    mask = (data[:, fm, QC_COL] == 0)
+    obs_matrix[:, j] = mask.sum(axis=1)
+
+print("StarID  rp  gp  ip")
+for i in range(n_stars):
+    print(f"{i:5d} {obs_matrix[i,0]:3d} {obs_matrix[i,1]:3d} {obs_matrix[i,2]:3d}")
+
+valid_mask = np.ones(n_stars, dtype=bool)
+for j, flt in enumerate(filters):
+    valid_mask &= obs_matrix[:, j] >= min_obs[flt]
+
+valid_idx = np.where(valid_mask)[0]
+valid_set = set(valid_idx.tolist())
+
+#save matrix
+np.savetxt(os.path.join(output_dir, "obs_counts_matrix.txt"),
+           np.column_stack([np.arange(n_stars), obs_matrix]),
+           fmt="%d", header="StarID rp gp ip", delimiter="\t")
+
 
 #getting constants from rms made in scatterplots_n_lcs.py
 rms_file = os.path.join(output_dir, "variability_rms_rp.txt")
@@ -56,15 +75,55 @@ if not os.path.exists(rms_file):
     raise FileNotFoundError(f"{rms_file} not found... Try running scatterplots_n_lcs.py first!")
 
 const_ids = []
-valid_set = set(valid_idx.tolist())
+
+#list of var stars from wget.bat
+exclude_star_indices = set()
+with open(ogle_vars) as f:
+    for line in f:
+        if "star" in line:
+            parts = line.strip().split("_")
+            for part in parts:
+                if part.startswith("star"):
+                    try:
+                        star_idx = int(part.replace("star", ""))
+                        exclude_star_indices.add(star_idx)
+                    except ValueError:
+                        continue
+
+
+#now getting dicts for gp and ip
+for flt in filters:
+    fm = filter_masks[flt]
+    for i in range(n_stars):
+        arr = data[i, fm, :]
+        mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0) & (arr[:, MAG_ERR_COL] < 0.5)
+        mags = arr[mask, MAG_COL]
+        if len(mags) > 0:
+            rms = np.std(mags)
+            rms_dicts[flt][i] = rms
+
 
 with open(rms_file, "r") as f:
     next(f)
     for line in f:
         star_idx, mean_mag, wmeans, werrors, rms, fit_rms, field_id, n_obs = line.split()
         star_idx = int(star_idx)
-        if abs(float(rms) - float(fit_rms)) <= var_thresh and star_idx in valid_set:
-            const_ids.append((star_idx, field_id))
+        mean = float(mean_mag)
+        rms_gp = rms_dicts["gp"].get(star_idx)
+        rms_ip = rms_dicts["ip"].get(star_idx)
+        rms_rp = rms_dicts["rp"].get(star_idx)
+
+        if None in (rms_gp, rms_ip, rms_rp):
+            continue  # skip if any missing
+
+        if (
+            abs(rms_gp - rms_rp) > 0.5 or
+            abs(rms_gp - rms_ip) > 0.5 or
+            abs(rms_rp - rms_ip) > 0.5
+        ):
+            continue
+        if abs(float(rms) - float(fit_rms)) <= var_thresh and star_idx in valid_set and star_idx not in exclude_star_indices:
+            const_ids.append((star_idx, field_id, mean))
 
 #now getting a random sample by binning by .5's
 from collections import defaultdict
@@ -73,16 +132,10 @@ from collections import defaultdict
 mag_bin_dict = defaultdict(list)
 bin_width = 0.5
 
-with open(rms_file, "r") as f:
-    next(f)
-    for line in f:
-        star_idx, mean_mag, wmeans, werrors, rms, fit_rms, field_id, n_obs = line.split()
-        star_idx = int(star_idx)
-        field_id = int(field_id)
-        mean_mag = float(mean_mag)
-        if abs(float(rms) - float(fit_rms)) <= var_thresh and star_idx in valid_set:
-            bin_key = round(mean_mag / bin_width)* bin_width
-            mag_bin_dict[bin_key].append((star_idx, field_id))
+for star_idx, field_id, mean_mag in const_ids:
+    if 13.5 <= mean_mag <= 21.0:
+        bin_key = round(mean_mag / bin_width) * bin_width
+        mag_bin_dict[bin_key].append((star_idx, field_id))
 
 #now want to randomly sample from each bin
 total_desired = 700
@@ -115,7 +168,7 @@ for star_idx, field_id in const_ids:
     for flt in filters:
         fm = filter_masks[flt]
         arr = data[star_idx, fm, :]
-        mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0)
+        mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0) & (arr[:, MAG_ERR_COL] < 0.5)
         if np.sum(mask) == 0:
             skip = True
             break
@@ -130,7 +183,7 @@ for star_idx, field_id in const_ids:
     for flt in filters:
         fm = filter_masks[flt]
         arr = data[star_idx, fm, :]
-        mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0)
+        mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0) & (arr[:, MAG_ERR_COL] < 0.5)
 
         if np.sum(mask) == 0:
             continue  #already checked for full data earlier
