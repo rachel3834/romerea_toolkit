@@ -200,6 +200,7 @@ for star_idx, field_id in const_ids:
 
         #save photometry per each star per filter
         photometry = arr[mask]
+        field_id = int(field_id)
         photometry_with_field = np.column_stack([photometry, np.full(len(photometry), field_id)])
         header = (
             "HJD Inst_Mag Inst_Mag_Err Calib_Mag Calib_Mag_Err Corr_Mag Corr_Mag_Err "
