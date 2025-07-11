@@ -123,11 +123,9 @@ for flt in filters:
     med_unc[flt] = np.median(arr[mask, MAG_ERR_COL]) if np.sum(mask) > 0 else np.inf
 
     # exclude if median uncertainty > RMS in any filter
-    if (
-        any(rms_dicts[flt].get(star_idx, np.inf) < med_unc[flt] for flt in filters)
-        is False
-    ):
-        continue
+    if all(rms_dicts[flt].get(star_idx, np.inf) < med_unc[flt] for flt in filters):
+        continue  # skip star if in all filters median uncertainty > RMS
+
 
     # also apply rms similarity threshold
     if (
