@@ -5,12 +5,14 @@ import os
 from astropy.io import fits
 from romerea_toolkit import crossmatch, hd5_utils
 import random
+import pandas as pd
 
 #paths
 hdf5_path = "/data01/aschweitzer/software/photo_copies/ROME-FIELD-20_quad4_photometry.hdf5"
 crossmatch_path = "/data01/aschweitzer/data/ROME/ROME-FIELD-20/ROME-FIELD-20_field_crossmatch.fits"
 output_dir = "CV_Lightcurves/Const_fits"
-ogle_vars = "/data01/aschweitzer/software/CV_Lightcurves/Const_fits/ogle_var_ids/wget_ROME.bat"
+ogle_vars = "/data01/aschweitzer/software/CV_Lightcurves/Const_fits/ogle_var_ids/table_ROMESimplest.csv"
+rome_table = pd.read_csv(ogle_vars)
 os.makedirs(output_dir, exist_ok=True)
 
 #starting values
@@ -44,21 +46,30 @@ n_stars, _, _ = data.shape
 #filter masks!
 filter_masks = {flt: im_filters == flt for flt in filters}
 
-#minimum obs filter
+#array for valid mask
 obs_matrix = np.zeros((n_stars, len(filters)), dtype=int)
 
 for j, flt in enumerate(filters):
-    fm = filter_masks[flt]
-    mask = (data[:, fm, QC_COL] == 0)
-    obs_matrix[:, j] = mask.sum(axis=1)
+    fm = filter_masks[flt]  #filter-specific mask on the time axis
+    arr = data[:, fm, :] 
+    
+    #valid mask per observation:
+    valid_mask = (arr[:, :, QC_COL] == 0) & (arr[:, :, MAG_COL] > 0) & (arr[:, :, MAG_ERR_COL] < 0.5)
 
-print("StarID  rp  gp  ip")
+    #counting valid obs per star in a filter
+    obs_matrix[:, j] = valid_mask.sum(axis=1)
+
+#print counts
+print("Star  #rp  #gp  #ip")
 for i in range(n_stars):
-    print(f"{i:5d} {obs_matrix[i,0]:3d} {obs_matrix[i,1]:3d} {obs_matrix[i,2]:3d}")
+    print(f"{i:5d} {obs_matrix[i,0]:4d} {obs_matrix[i,1]:4d} {obs_matrix[i,2]:4d}")
 
-valid_mask = np.ones(n_stars, dtype=bool)
-for j, flt in enumerate(filters):
-    valid_mask &= obs_matrix[:, j] >= min_obs[flt]
+#bool masks for thresholds
+valid_mask = (
+    (obs_matrix[:, 0] >= min_obs["rp"]) &
+    (obs_matrix[:, 1] >= min_obs["gp"]) &
+    (obs_matrix[:, 2] >= min_obs["ip"])
+)
 
 valid_idx = np.where(valid_mask)[0]
 valid_set = set(valid_idx.tolist())
@@ -75,21 +86,8 @@ if not os.path.exists(rms_file):
     raise FileNotFoundError(f"{rms_file} not found... Try running scatterplots_n_lcs.py first!")
 
 const_ids = []
-
-#list of var stars from wget.bat
-exclude_star_indices = set()
-with open(ogle_vars) as f:
-    for line in f:
-        if "star" in line:
-            parts = line.strip().split("_")
-            for part in parts:
-                if part.startswith("star"):
-                    try:
-                        star_idx = int(part.replace("star", ""))
-                        exclude_star_indices.add(star_idx)
-                    except ValueError:
-                        continue
-
+#limiting via ogle list of vars (exclude known variables)
+exclude_star_indices = set(rome_table["field_id"].values.astype(int))
 
 #now getting dicts for gp and ip
 for flt in filters:
@@ -116,14 +114,31 @@ with open(rms_file, "r") as f:
         if None in (rms_gp, rms_ip, rms_rp):
             continue  # skip if any missing
 
-        if (
-            abs(rms_gp - rms_rp) > 0.5 or
-            abs(rms_gp - rms_ip) > 0.5 or
-            abs(rms_rp - rms_ip) > 0.5
-        ):
-            continue
-        if abs(float(rms) - float(fit_rms)) <= var_thresh and star_idx in valid_set and star_idx not in exclude_star_indices:
-            const_ids.append((star_idx, field_id, mean))
+        # get median uncertainties in each filter
+med_unc = {}
+for flt in filters:
+    fm = filter_masks[flt]
+    arr = data[star_idx, fm, :]
+    mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0)
+    med_unc[flt] = np.median(arr[mask, MAG_ERR_COL]) if np.sum(mask) > 0 else np.inf
+
+    # exclude if median uncertainty > RMS in any filter
+    if (
+        any(rms_dicts[flt].get(star_idx, np.inf) < med_unc[flt] for flt in filters)
+        is False
+    ):
+        continue
+
+    # also apply rms similarity threshold
+    if (
+        abs(rms_gp - rms_rp) > 0.5 or
+        abs(rms_gp - rms_ip) > 0.5 or
+        abs(rms_rp - rms_ip) > 0.5
+    ):
+        continue
+
+    if abs(float(rms) - float(fit_rms)) <= var_thresh and star_idx in valid_set and star_idx not in exclude_star_indices:
+        const_ids.append((star_idx, field_id, mean))
 
 #now getting a random sample by binning by .5's
 from collections import defaultdict
