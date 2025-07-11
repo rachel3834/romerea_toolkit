@@ -115,28 +115,31 @@ with open(rms_file, "r") as f:
             continue  # skip if any missing
 
         # get median uncertainties in each filter
-med_unc = {}
-for flt in filters:
-    fm = filter_masks[flt]
-    arr = data[star_idx, fm, :]
-    mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0)
-    med_unc[flt] = np.median(arr[mask, MAG_ERR_COL]) if np.sum(mask) > 0 else np.inf
+        # get median uncertainties in each filter
+        med_unc = {}
+        for flt in filters:
+            fm = filter_masks[flt]
+            arr = data[star_idx, fm, :]
+            mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0)
+            med_unc[flt] = np.median(arr[mask, MAG_ERR_COL]) if np.sum(mask) > 0 else np.inf
 
-    # exclude if median uncertainty > RMS in any filter
-    if all(rms_dicts[flt].get(star_idx, np.inf) < med_unc[flt] for flt in filters):
-        continue  # skip star if in all filters median uncertainty > RMS
+        # exclude if *any* median uncertainty is greater than its RMS
+        if any(med_unc[flt] > rms_dicts[flt].get(star_idx, np.inf) for flt in filters):
+            print(f"Excluded star {star_idx} due to high uncertainty in one or more filters.")
+            continue
 
+        
 
-    # also apply rms similarity threshold
-    if (
-        abs(rms_gp - rms_rp) > 0.5 or
-        abs(rms_gp - rms_ip) > 0.5 or
-        abs(rms_rp - rms_ip) > 0.5
-    ):
-        continue
+        # also apply rms similarity threshold
+        if (
+            abs(rms_gp - rms_rp) > 0.5 or
+            abs(rms_gp - rms_ip) > 0.5 or
+            abs(rms_rp - rms_ip) > 0.5
+        ):
+            continue
 
-    if abs(float(rms) - float(fit_rms)) <= var_thresh and star_idx in valid_set and star_idx not in exclude_star_indices:
-        const_ids.append((star_idx, field_id, mean))
+        if abs(float(rms) - float(fit_rms)) <= var_thresh and star_idx in valid_set and star_idx not in exclude_star_indices:
+            const_ids.append((star_idx, field_id, mean))
 
 #now getting a random sample by binning by .5's
 from collections import defaultdict
