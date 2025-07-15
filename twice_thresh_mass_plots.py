@@ -10,10 +10,17 @@ import pandas as pd
 #paths
 hdf5_path = "/data01/aschweitzer/software/photo_copies/ROME-FIELD-20_quad4_photometry.hdf5"
 crossmatch_path = "/data01/aschweitzer/data/ROME/ROME-FIELD-20/ROME-FIELD-20_field_crossmatch.fits"
-output_dir = "CV_Lightcurves/Const_fits/twice_threshold"
+output_dir = "CV_Lightcurves/Const_fits"
 ogle_vars = "/data01/aschweitzer/software/CV_Lightcurves/Const_fits/ogle_var_ids/table_ROMESimplest.csv"
 rome_table = pd.read_csv(ogle_vars)
 os.makedirs(output_dir, exist_ok=True)
+
+
+
+summary_path = os.path.join(output_dir, "const_star_summary.txt")
+summary_header = "field_id star_id filter weighted_mean RMS median_unc n_obs\n"
+with open(summary_path, "w") as f:
+    f.write(summary_header)
 
 #starting values
 var_thresh = 0.5
@@ -205,70 +212,61 @@ print(f"Selected {len(all_binned_ids)} constant stars!")
 const_ids = all_binned_ids
 
 
-for star_idx, field_id in const_ids:
-    #now proceed to skip a star if it has invalid data in any filter
-    skip = False
-    for flt in filters:
-        fm = filter_masks[flt]
-        arr = data[star_idx, fm, :]
-        mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0) & (arr[:, MAG_ERR_COL] < 0.5)
-        if np.sum(mask) == 0:
-            skip = True
-            break
-    if skip:
-        continue  #skip this star entirely
-   
-   
-   
-   #now to get all filter data....
+for star_idx, field_id in all_binned_ids:
+    
     all_filter_data = []
-
-    for flt in filters:
-        fm = filter_masks[flt]
-        arr = data[star_idx, fm, :]
+    plt.figure(figsize=(7, 5))
+    summary_lines = []
+    
+    for offset, flt in enumerate(filters):
+        arr = data[star_idx, filter_masks[flt], :]
         mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0) & (arr[:, MAG_ERR_COL] < 0.5)
-
         if np.sum(mask) == 0:
-            continue  #already checked for full data earlier
-
+            continue
         hjd = arr[mask, HJD_COL]
         mag = arr[mask, MAG_COL]
         err = arr[mask, MAG_ERR_COL]
+        weights = 1.0 / np.square(err)
+        wmean = np.average(mag, weights=weights)
+        residual = mag - wmean + 0.3 * offset
+        rms = np.std(mag)
+        med_u = np.median(err)
+        n_obs = len(hjd)
+        summary_lines.append(f"{field_id} {star_idx} {flt} {wmean:.4f} {rms:.4f} {med_u:.4f} {n_obs}")
+        
+        plt.errorbar(hjd, residual, yerr=err, fmt='o', ms=3, alpha=0.4,
+                     color=filter_colors[flt],
+                     label=f"{flt}: μ={wmean:.2f}, RMS={rms:.2f}, σₘ={med_u:.2f}, N={n_obs}")
+        
+        #plot mean lines
+        plt.axhline(0.3 * offset, color=filter_colors[flt], linestyle='--', linewidth=1.0, alpha=0.6)
 
-        #sorting by HJD
-        sort = np.argsort(hjd)
-        hjd, mag, err = hjd[sort], mag[sort], err[sort]
-
-        all_filter_data.append((flt, hjd, mag, err))
-
-        #save photometry per each star per filter
-        photometry = arr[mask]
-        field_id = int(field_id)
-        photometry_with_field = np.column_stack([photometry, np.full(len(photometry), field_id)])
+        #save photometry
+        phot_with_fid = np.column_stack([arr[mask], np.full(n_obs, field_id)]).astype(np.float64)
         header = (
-            "HJD Inst_Mag Inst_Mag_Err Calib_Mag Calib_Mag_Err Corr_Mag Corr_Mag_Err "
-            "Norm_Mag Norm_Mag_Err Phot_Scale Phot_Scale_Err Stamp_Idx Sky_Bkgd "
-            "Sky_Bkgd_Err Residual_X Residual_Y QC_Flag Field_ID"
-        )
-        print(f"Saving txt file in {flt} for star idx {star_idx} field id {field_id}!")
-        txt_name = f"field{field_id}_const_star{star_idx}_{flt}_photometry.txt"
-        np.savetxt(os.path.join(output_dir, txt_name), photometry_with_field, fmt="%.6f", header=header, delimiter="\t")
+        f"# Star ID: {star_idx}, Field ID: {field_id}, Filter: {flt}\n"
+        f"# Weighted Mean = {wmean:.4f}, RMS = {rms:.4f}, Median Uncertainty = {med_u:.4f}, N_obs = {n_obs}\n"
+        "HJD Inst_Mag Inst_Mag_Err Calib_Mag Calib_Mag_Err Corr_Mag Corr_Mag_Err "
+        "Norm_Mag Norm_Mag_Err Phot_Scale Phot_Scale_Err Stamp_Idx Sky_Bkgd "
+        "Sky_Bkgd_Err Residual_X Residual_Y QC_Flag Field_ID"
+    )
 
-    #now plotting 
-    plt.figure(figsize=(7, 5))
-    for flt, hjd, mag, err in all_filter_data:
-        plt.errorbar(hjd, mag, yerr=err, fmt='o', ms=3, alpha=0.4, color=filter_colors[flt], label=flt)
-        mean_mag = np.mean(mag)
-        plt.axhline(mean_mag, color=filter_colors[flt], linestyle='--',
-                    linewidth=1.2, alpha=0.6,
-                    label=f"{flt} mean = {mean_mag:.2f}")
+    np.savetxt(
+        os.path.join(output_dir, f"field{field_id}_const_star{star_idx}_{flt}_photometry.txt"),
+        phot_with_fid, fmt="%.6f", header=header, delimiter="\t"
+    )
+
+
+    for line in summary_lines:
+        with open(summary_path, "a") as f:
+            f.write(line + "\n")
+
+    plt.axhline(0, color="gray", lw=0.5, linestyle="--")
     plt.gca().invert_yaxis()
     plt.xlabel("HJD")
-    plt.ylabel("Magnitude")
-    plt.title(f"Field {field_id} — Const Star {star_idx} (All Filters)")
+    plt.ylabel("Residual Magnitude")
+    plt.title(f"Residual Lightcurve — Field {field_id} Star {star_idx}")
     plt.legend()
     plt.tight_layout()
-    plot_name = f"field{field_id}_const_star{star_idx}_ALL_lc.png"
-    print(f"Plotted star {star_idx} field id {field_id}")
-    plt.savefig(os.path.join(output_dir, plot_name))
+    plt.savefig(os.path.join(output_dir, f"field{field_id}_const_star{star_idx}_ALL_resid_lc.png"))
     plt.close()
