@@ -49,10 +49,36 @@ filter_masks = {flt: im_filters == flt for flt in filters}
 #array for valid mask
 obs_matrix = np.zeros((n_stars, len(filters)), dtype=int)
 
+#-----------------------------#
+#check effect of QC flag filtering
+total_valid_obs = 0
+total_raw_obs = 0
+
+for j, flt in enumerate(filters):
+    fm = filter_masks[flt]
+    arr = data[:, fm, :]
+
+    #with QC filtering
+    qc_mask = (arr[:, :, QC_COL] == 0) & (arr[:, :, MAG_COL] > 0) & (arr[:, :, MAG_ERR_COL] < 0.5)
+    total_valid_obs += qc_mask.sum()
+
+    #without QC filtering
+    raw_mask = (arr[:, :, MAG_COL] > 0) & (arr[:, :, MAG_ERR_COL] < 0.5)
+    total_raw_obs += raw_mask.sum()
+
+print(f"\n[Diagnostic] Total valid obs (QC=0):   {total_valid_obs}")
+print(f"[Diagnostic] Total raw obs (ignoring QC): {total_raw_obs}")
+print(f"[Diagnostic] Fraction kept after QC filtering: {total_valid_obs / total_raw_obs:.3f}\n")
+#------------------------------#
+
+
+#now actually building the lcs and txts valid masks
 for j, flt in enumerate(filters):
     fm = filter_masks[flt]  #filter-specific mask on the time axis
     arr = data[:, fm, :] 
-    
+    #check
+
+
     #valid mask per observation:
     valid_mask = (arr[:, :, QC_COL] == 0) & (arr[:, :, MAG_COL] > 0) & (arr[:, :, MAG_ERR_COL] < 0.5)
 
@@ -73,6 +99,7 @@ valid_mask = (
 
 valid_idx = np.where(valid_mask)[0]
 valid_set = set(valid_idx.tolist())
+
 
 #save matrix
 np.savetxt(os.path.join(output_dir, "obs_counts_matrix.txt"),
