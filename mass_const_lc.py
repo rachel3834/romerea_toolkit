@@ -242,7 +242,7 @@ for star_idx, field_id in all_binned_ids:
         plt.axhline(0.3 * offset, color=filter_colors[flt], linestyle='--', linewidth=1.0, alpha=0.6)
 
         #save photometry
-        phot_with_fid = np.column_stack([arr[mask], np.full(n_obs, field_id)])
+        phot_with_fid = np.column_stack([arr[mask], np.full(n_obs, field_id)]).astype(np.float64)
         header = (
         f"# Star ID: {star_idx}, Field ID: {field_id}, Filter: {flt}\n"
         f"# Weighted Mean = {wmean:.4f}, RMS = {rms:.4f}, Median Uncertainty = {med_u:.4f}, N_obs = {n_obs}\n"
