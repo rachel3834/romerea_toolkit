@@ -66,9 +66,24 @@ field_id_to_star_idx = {
     if row["quadrant"] == QUAD_ID
 }
 
+
 if target_field_id not in field_id_to_star_idx:
     raise ValueError(f"FIELD ID {target_field_id} not found in quadrant {QUAD_ID}!")
 star_idx = field_id_to_star_idx[target_field_id]
+
+#now getting xy coords so i can insepct on ds9
+star_entries = images[images["index"] == star_idx]
+
+if len(star_entries) > 0:
+    print(f"\n--- x-y coordinates for Star Index #{star_idx} (FIELD ID {target_field_id}) ---")
+    for entry in star_entries:
+        flt = entry["filter"]
+        x = entry["sigma_x"]
+        y = entry["sigma_y"]
+        print(f"Filter {flt}: sigma_x = {x:.2f}, sigma_y = {y:.2f}")
+else:
+    print(f"No image data found for star_idx{star_idx}")
+
 
 
 #now plotting all filters in one lightcurve
@@ -140,3 +155,8 @@ for flt in filters:
     plt.savefig(os.path.join(output_dir, f"star{target_field_id}_{flt}_lc.png"))
     plt.close()
     print(f"Saved {flt} filter lightcurve for star {target_field_id}.")
+
+
+
+
+
