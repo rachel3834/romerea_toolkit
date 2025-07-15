@@ -16,7 +16,7 @@ rome_table = pd.read_csv(ogle_vars)
 os.makedirs(output_dir, exist_ok=True)
 
 #starting values
-var_thresh = 0.5
+var_thresh = 0.25
 filters = ["rp", "gp", "ip"]
 min_obs = {"rp": 100, "gp": 100, "ip": 100}
 filter_colors = {"rp": "red", "gp": "green", "ip": "blue"}

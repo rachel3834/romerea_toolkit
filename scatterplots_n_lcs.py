@@ -13,7 +13,7 @@ crossmatch_path = "/data01/aschweitzer/data/ROME/ROME-FIELD-20/ROME-FIELD-20_fie
 output_dir = "CV_Lightcurves/Const_fits"
 os.makedirs(output_dir, exist_ok=True)
 
-var_thresh = 0.5
+var_thresh = 0.25
 
 xmatch = crossmatch.CrossMatchTable()
 xmatch.load(crossmatch_path, log=None)
