@@ -121,14 +121,14 @@ for field_num in range(1, 21):
             print(f"Saved star CSV: {csv_path}")
 
 
-            # Unique ID per star
+            #unique ID per star
             star_id = f"field{field_id}_quad{quadrant}_qid{qid}"
-            df_final.insert(0, "id", star_id)  # Add 'id' as first column
+            df_final.insert(0, "id", star_id)  #'id' as first column
 
-            # Store rows for combined lightcurve
+            #store rows for combined lightcurve
             all_lightcurve_rows.append(df_final)
 
-            # Add label row
+            #add label row
             label_rows.append({"id": star_id, "label": "CV"})
 
 
