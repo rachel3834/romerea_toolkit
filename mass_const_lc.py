@@ -229,6 +229,8 @@ for star_idx, field_id in all_binned_ids:
         weights = 1.0 / np.square(err)
         wmean = np.average(mag, weights=weights)
         residual = mag - wmean + 0.3 * offset
+
+        #unweighted rms! (since median u. is unweighted too)
         rms = np.std(mag)
         med_u = np.median(err)
         n_obs = len(hjd)
@@ -248,13 +250,12 @@ for star_idx, field_id in all_binned_ids:
         f"# Weighted Mean = {wmean:.4f}, RMS = {rms:.4f}, Median Uncertainty = {med_u:.4f}, N_obs = {n_obs}\n"
         "HJD Inst_Mag Inst_Mag_Err Calib_Mag Calib_Mag_Err Corr_Mag Corr_Mag_Err "
         "Norm_Mag Norm_Mag_Err Phot_Scale Phot_Scale_Err Stamp_Idx Sky_Bkgd "
-        "Sky_Bkgd_Err Residual_X Residual_Y QC_Flag Field_ID"
-    )
+        "Sky_Bkgd_Err Residual_X Residual_Y QC_Flag Field_ID")
 
-    np.savetxt(
-        os.path.join(output_dir, f"field{field_id}_const_star{star_idx}_{flt}_photometry.txt"),
-        phot_with_fid, fmt="%.6f", header=header, delimiter="\t"
-    )
+        np.savetxt(
+            os.path.join(output_dir, f"field{field_id}_const_star{star_idx}_{flt}_photometry.txt"),
+            phot_with_fid, fmt="%.6f", header=header, delimiter="\t"
+        )
 
 
     for line in summary_lines:
@@ -270,3 +271,112 @@ for star_idx, field_id in all_binned_ids:
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"field{field_id}_const_star{star_idx}_ALL_resid_lc.png"))
     plt.close()
+
+
+
+
+#FINAL CSV SAVE FILE FOR MICROLIA
+csv_summary_path = os.path.join(output_dir, "const_star_photometry_summary.csv")
+summary_rows = []
+
+#field index info for RA/Dec and quadrant_id
+with fits.open(crossmatch_path) as hdul:
+    field_index_table = hdul["FIELD_INDEX"].data
+
+for star_idx, field_id in all_binned_ids:
+    row_data = {
+        "field": "ROME-FIELD-20",
+        "field_id": int(field_id)
+    }
+
+    #match field_id to RA, Dec, and quadrant_id
+    match = field_index_table[field_index_table["field_id"] == int(field_id)]
+    if len(match) > 0:
+        row_data["ra"] = match["ra"][0]
+        row_data["dec"] = match["dec"][0]
+        row_data["quadrant_id"] = match["quadrant_id"][0]
+    else:
+        row_data["ra"] = np.nan
+        row_data["dec"] = np.nan
+        row_data["quadrant_id"] = np.nan
+
+    for flt in filters:
+        arr = data[star_idx, filter_masks[flt], :]
+        mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0) & (arr[:, MAG_ERR_COL] < 0.5)
+        if np.sum(mask) == 0:
+            row_data[f"{flt}_norm_mag"] = np.nan
+            row_data[f"{flt}_norm_mag_err"] = np.nan
+            continue
+
+        mag = arr[mask, MAG_COL]
+        err = arr[mask, MAG_ERR_COL]
+        weights = 1.0 / np.square(err)
+        wmean = np.average(mag, weights=weights)
+        med_u = np.median(err)
+
+        row_data[f"{flt}_norm_mag"] = round(wmean, 4)
+        row_data[f"{flt}_norm_mag_err"] = round(med_u, 4)
+
+    summary_rows.append(row_data)
+
+#convert and write to csv file
+df_summary = pd.DataFrame(summary_rows)
+df_summary.to_csv(csv_summary_path, index=False)
+print(f"\nSaved full star summary CSV to: {csv_summary_path}")
+
+
+#lightcurve CSV for Microlia
+lightcurve_rows = []
+
+for star_idx, field_id in all_binned_ids:
+    for flt in filters:
+        arr = data[star_idx, filter_masks[flt], :]
+        mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0) & (arr[:, MAG_ERR_COL] < 0.5)
+
+        if np.sum(mask) == 0:
+            continue
+
+        hjd = arr[mask, HJD_COL]
+        mag = arr[mask, MAG_COL]
+        err = arr[mask, MAG_ERR_COL]
+
+        for t, m, e in zip(hjd, mag, err):
+            lightcurve_rows.append({
+                "id": f"{field_id}_{star_idx}",
+                "time": t,
+                "mag": m,
+                "mag_err": e,
+                "filter": flt
+            })
+
+#save to CSV
+lightcurve_df = pd.DataFrame(lightcurve_rows)
+lightcurve_csv_path = os.path.join(output_dir, "microlia_lightcurves.csv")
+lightcurve_df.to_csv(lightcurve_csv_path, index=False)
+print(f"✅ Microlia-compatible lightcurve CSV saved to: {lightcurve_csv_path}")
+
+
+label_rows = []
+
+for star_idx, field_id in all_binned_ids:
+    label_rows.append({
+        "id": f"{field_id}_{star_idx}",
+        "label": "CONST"
+    })
+
+label_df = pd.DataFrame(label_rows)
+label_csv_path = os.path.join(output_dir, "microlia_labels.csv")
+label_df.to_csv(label_csv_path, index=False)
+print(f"✅ Microlia-compatible label CSV saved to: {label_csv_path}")
+
+label_rows = []
+
+for star_idx, field_id in all_binned_ids:
+    label_rows.append({
+        "id": f"{field_id}_{star_idx}",
+        "label": "CONST"
+    })
+
+
+
+

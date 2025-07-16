@@ -10,7 +10,7 @@ import pandas as pd
 #paths
 hdf5_path = "/data01/aschweitzer/software/photo_copies/ROME-FIELD-20_quad4_photometry.hdf5"
 crossmatch_path = "/data01/aschweitzer/data/ROME/ROME-FIELD-20/ROME-FIELD-20_field_crossmatch.fits"
-output_dir = "CV_Lightcurves/Const_fits"
+output_dir = "CV_Lightcurves/Const_fits/twice_thresholds"
 ogle_vars = "/data01/aschweitzer/software/CV_Lightcurves/Const_fits/ogle_var_ids/table_ROMESimplest.csv"
 rome_table = pd.read_csv(ogle_vars)
 os.makedirs(output_dir, exist_ok=True)
