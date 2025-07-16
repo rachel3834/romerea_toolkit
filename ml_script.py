@@ -5,9 +5,11 @@ import os
 
 #paths
 class_name = "ml" 
-base_dir = "/data01/aschweitzer/software/microlia_output"
-input_csv = os.path.join(base_dir, class_name, f"{class_name}_table.csv")
-output_dir = os.path.join(base_dir, class_name)
+dir_name = "ml_lcs"
+base_dir = "/data01/aschweitzer/software/CV_Lightcurves"
+input_csv = os.path.join(base_dir, dir_name, f"{class_name}_table.csv")
+final_dir = "/data01/aschweitzer/software/microlia_output"
+output_dir = os.path.join(final_dir, class_name)
 os.makedirs(output_dir, exist_ok=True)
 
 #data storage
