@@ -10,7 +10,7 @@ from romerea_toolkit import crossmatch
 photo_dir = "/data01/aschweitzer/software/photo_copies"
 data_dir = "/data01/aschweitzer/data"
 output_dir = "/data01/aschweitzer/software/CV_Lightcurves/plots"
-micrlout_dir = "/data01/aschweitzer/software/CV_Lightcurves/microlia_output/cv"
+micrlout_dir = "/data01/aschweitzer/software/microlia_output/cv"
 os.makedirs(output_dir, exist_ok=True)
 
 
