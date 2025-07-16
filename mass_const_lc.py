@@ -354,7 +354,7 @@ for star_idx, field_id in all_binned_ids:
 lightcurve_df = pd.DataFrame(lightcurve_rows)
 lightcurve_csv_path = os.path.join(final_dir, "const_microlia_lightcurves.csv")
 lightcurve_df.to_csv(lightcurve_csv_path, index=False)
-print(f"✅ Microlia-compatible lightcurve CSV saved to: {lightcurve_csv_path}")
+print(f"Microlia-compatible lightcurve CSV saved to: {lightcurve_csv_path}")
 
 
 label_rows = []
@@ -368,7 +368,7 @@ for star_idx, field_id in all_binned_ids:
 label_df = pd.DataFrame(label_rows)
 label_csv_path = os.path.join(final_dir, "const_microlia_labels.csv")
 label_df.to_csv(label_csv_path, index=False)
-print(f"✅ Microlia-compatible label CSV saved to: {label_csv_path}")
+print(f"Microlia-compatible label CSV saved to: {label_csv_path}")
 
 label_rows = []
 
