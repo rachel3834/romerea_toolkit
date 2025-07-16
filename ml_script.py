@@ -1,34 +1,46 @@
 import pandas as pd
-import os
 from astropy.io import fits
+from astropy.utils.data import download_file
+import os
 
 #paths
-input_csv = "/data01/aschweitzer/software/CV_Lightcurves/ml_lcs/ml_table.csv"  #table
-output_dir = "/data01/aschweitzer/software/microlia_output/ml" 
-label = "ML"
-
-base_dir = "/data01/aschweitzer/data/ROME"
+class_name = "ml" 
+base_dir = "/data01/aschweitzer/software/microlia_output"
+input_csv = os.path.join(base_dir, class_name, f"{class_name}_table.csv")
+output_dir = os.path.join(base_dir, class_name)
 os.makedirs(output_dir, exist_ok=True)
 
-#input table of stars
-df = pd.read_csv(input_csv)
+#data storage
 lightcurve_rows = []
 label_rows = []
 
-for _, row in df.iterrows():
-    field_id = int(row["field_id"])
-    field = row["field"].strip()
-    name = row["name"].strip()
-    star_id = str(field_id)  #unique ID for Microlia to use
+df = pd.read_csv(input_csv)
 
-    fits_path = os.path.join(base_dir, field, f"{name}.fits")
-    if not os.path.exists(fits_path):
-        print(f"Missing file: {fits_path}")
+for i, row in df.iterrows():
+    name = str(row.get("name") or row.get("Name")).strip()
+    field = str(row.get("field") or row.get("Field")).strip()
+    star_id = f"{field}_{name}"
+
+    #last column is the FITS URL
+    fits_url = row.iloc[-1]
+    if not isinstance(fits_url, str) or not fits_url.endswith(".fits"):
+        print(f"Skipping {star_id}: Invalid FITS URL")
         continue
 
     try:
+        #download fits to cache so we can actually access the lc data we need inside
+        fits_path = download_file(fits_url, cache=True, timeout=30)
+
         with fits.open(fits_path) as hdul:
             data = hdul[1].data
+            if data is None or len(data) == 0:
+                print(f" Empty data: {star_id}")
+                continue
+
+            if not all(k in data.columns.names for k in ["HJD", "MAG_CALIB", "MAG_CALIB_ERR"]):
+                print(f"Missing columns for {star_id}")
+                continue
+
             hjd = data["HJD"]
             mag = data["MAG_CALIB"]
             mag_err = data["MAG_CALIB_ERR"]
@@ -43,21 +55,23 @@ for _, row in df.iterrows():
                     "filter": f
                 })
 
-            label_rows.append({"id": star_id, "label": label})
+            label_rows.append({
+                "id": star_id,
+                "label": class_name.upper()
+            })
+
+            print(f"Downloaded/processed {star_id} ({len(hjd)} points)")
 
     except Exception as e:
-        print(f"Error with {fits_path}: {e}")
+        print(f"Error processing {star_id}: {e}")
         continue
 
-#save microlia files (lc + label csvs)
-lightcurve_df = pd.DataFrame(lightcurve_rows)
-label_df = pd.DataFrame(label_rows)
+#now saving as lc and label csv's that are req. for microlia array format
+lc_path = os.path.join(output_dir, f"{class_name}_microlia_lightcurves.csv")
+label_path = os.path.join(output_dir, f"{class_name}_microlia_labels.csv")
 
-lightcurve_path = os.path.join(output_dir, f"{label.lower()}_microlia_lightcurves.csv")
-label_path = os.path.join(output_dir, f"{label.lower()}_microlia_labels.csv")
+pd.DataFrame(lightcurve_rows).to_csv(lc_path, index=False)
+pd.DataFrame(label_rows).to_csv(label_path, index=False)
 
-lightcurve_df.to_csv(lightcurve_path, index=False)
-label_df.to_csv(label_path, index=False)
-
-print(f"\n Lightcurves saved to: {lightcurve_path}")
-print(f"Labels saved to: {label_path}")
+print(f"\n Saved lightcurves to {lc_path}")
+print(f" Sdaved labels to {label_path}")
