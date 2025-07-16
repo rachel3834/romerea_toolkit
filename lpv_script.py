@@ -3,9 +3,9 @@ import os
 from astropy.io import fits
 
 #paths
-input_csv = "/data01/aschweitzer/software/CV_Lightcurves/ml_lcs/ml_table.csv"  #table
-output_dir = "/data01/aschweitzer/software/microlia_output/ml" 
-label = "ML"
+input_csv = "/data01/aschweitzer/software/CV_Lightcurves/lpv_lcs/lpv_table.csv"  #table
+output_dir = "/data01/aschweitzer/software/microlia_output/lpv" 
+label = "LPV"
 
 base_dir = "/data01/aschweitzer/data/ROME"
 os.makedirs(output_dir, exist_ok=True)
