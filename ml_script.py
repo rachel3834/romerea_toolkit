@@ -3,7 +3,7 @@ import os
 from astropy.io import fits
 
 #paths
-input_csv = "ml_table.csv"  #table
+input_csv = "/data01/aschweitzer/software/CV_Lightcurves/ml_lcs/ml_table.csv"  #table
 output_dir = "/data01/aschweitzer/software/microlia_output/ml" 
 label = "ML"  # or RRLYR, LPV, etc.
 
