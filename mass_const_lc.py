@@ -11,6 +11,7 @@ import pandas as pd
 hdf5_path = "/data01/aschweitzer/software/photo_copies/ROME-FIELD-20_quad4_photometry.hdf5"
 crossmatch_path = "/data01/aschweitzer/data/ROME/ROME-FIELD-20/ROME-FIELD-20_field_crossmatch.fits"
 output_dir = "CV_Lightcurves/Const_fits"
+final_dir = "/data01/aschweitzer/software/microlia_output/const"
 ogle_vars = "/data01/aschweitzer/software/CV_Lightcurves/Const_fits/ogle_var_ids/table_ROMESimplest.csv"
 rome_table = pd.read_csv(ogle_vars)
 os.makedirs(output_dir, exist_ok=True)
@@ -351,7 +352,7 @@ for star_idx, field_id in all_binned_ids:
 
 #save to CSV
 lightcurve_df = pd.DataFrame(lightcurve_rows)
-lightcurve_csv_path = os.path.join(output_dir, "microlia_lightcurves.csv")
+lightcurve_csv_path = os.path.join(final_dir, "const_microlia_lightcurves.csv")
 lightcurve_df.to_csv(lightcurve_csv_path, index=False)
 print(f"✅ Microlia-compatible lightcurve CSV saved to: {lightcurve_csv_path}")
 
@@ -365,7 +366,7 @@ for star_idx, field_id in all_binned_ids:
     })
 
 label_df = pd.DataFrame(label_rows)
-label_csv_path = os.path.join(output_dir, "microlia_labels.csv")
+label_csv_path = os.path.join(final_dir, "const_microlia_labels.csv")
 label_df.to_csv(label_csv_path, index=False)
 print(f"✅ Microlia-compatible label CSV saved to: {label_csv_path}")
 
