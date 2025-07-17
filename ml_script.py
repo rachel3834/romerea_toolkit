@@ -1,100 +1,81 @@
 import os
 import pandas as pd
+import requests
 from astropy.io import fits
-from astropy.utils.data import download_file
+from astropy.table import Table
 from tqdm import tqdm
 
-#config
-class_name = "ml"
-dir_name = "ml_lcs"
-base_dir = "/data01/aschweitzer/software/CV_Lightcurves"
-input_csv = os.path.join(base_dir, dir_name, f"{class_name}_table.csv")
-final_dir = "/data01/aschweitzer/software/microlia_output"
-output_dir = os.path.join(final_dir, class_name)
-os.makedirs(output_dir, exist_ok=True)
+#base download URL for exoplanet archive downloads
+BASE_URL = "https://exoplanetarchive.ipac.caltech.edu/workspace/TMP_Z62BKO_8520/ROME/tab1/data/data_reduction"
+OUTPUT_DIR = "/data01/aschweitzer/software/microlia_output/ml"
+LC_CSV = "microlia_lightcurves.csv"
+LABEL_CSV = "microlia_labels.csv"
 
-#base URL prefix for fits files (adjust if needed)
-base_url = "https://exoplanetarchive.ipac.caltech.edu/data/ROME/data_reduction"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-#reading input CSV
-df = pd.read_csv(input_csv)
+#loading input csv
+#cSV has: id,fits_path,label (label is optional)
+input_csv = "/data01/aschweitzer/software/CV_Lightcurves/ml_lcs/ml_table.csv"  
+input_df = pd.read_csv(input_csv)
 
-#storage for microlia lightcurve rows and IDs
-all_lc_rows = []
-all_ids = set()
+#store final data here
+lightcurve_rows = []
+labels = []
 
-for i, row in tqdm(df.iterrows(), total=len(df)):
-    fits_path = row.get("fits", "")
-    if not isinstance(fits_path, str) or not fits_path.endswith(".fits"):
-        print(f"Skipping row {i}: invalid FITS path")
-        continue
+for _, row in tqdm(input_df.iterrows(), total=len(input_df)):
+    star_id = row["id"]
+    fits_path = row["fits_path"]
+    label = row.get("label", None)
 
-    #normalize fits_path, remove leading "./"
-    if fits_path.startswith("./"):
-        fits_path = fits_path[2:]
+    local_filename = os.path.join(OUTPUT_DIR, os.path.basename(fits_path))
 
-    full_url = f"{base_url}/{fits_path}"
-    filename = os.path.basename(fits_path)
-    local_path = os.path.join(output_dir, filename)
-
-    #download if not already
-    if not os.path.exists(local_path):
+    #skip if already downloaded
+    if not os.path.exists(local_filename):
+        url = f"{BASE_URL}/{fits_path}"
         try:
-            temp_path = download_file(full_url, cache=True, show_progress=False, timeout=30)
-            os.rename(temp_path, local_path)
-            print(f"Downloaded {filename}")
+            r = requests.get(url, timeout=10)
+            r.raise_for_status()
+            with open(local_filename, "wb") as f:
+                f.write(r.content)
         except Exception as e:
-            print(f"Failed to download {full_url}: {e}")
+            print(f"Failed to download {url}: {e}")
             continue
 
-    #open FITS and extract data from each filter extension
+    #now open FITS file
     try:
-        with fits.open(local_path) as hdul:
-            filters = ["g", "r", "i"]
-            ext_names = ["table_g", "table_r", "table_i"]
-            obj_id = os.path.splitext(filename)[0]
-
-            for filter_name, ext_name in zip(filters, ext_names):
-                if ext_name not in hdul:
-                    print(f"Warning: {ext_name} missing in {filename}, skipping filter {filter_name}")
+        with fits.open(local_filename) as hdul:
+            for filt, name in zip(['i', 'g', 'r'], ['table_i', 'table_g', 'table_r']):
+                if name not in hdul:
                     continue
-
-                data = hdul[ext_name].data
-                required_cols = ["HJD", "NORMALIZED_MAG", "NORMALIZED_MAG_ERR"]
-                if not all(col in data.columns.names for col in required_cols):
-                    print(f"Missing required columns in {ext_name} for {filename}, so now skipping filter {filter_name}")
+                data = Table(hdul[name].data).to_pandas()
+                if not {'Heliocentric Julian Date', 'Normalized mag', 'Normalized mag (error)'}.issubset(data.columns):
                     continue
+                
+                df = pd.DataFrame({
+                    'id': star_id,
+                    'time': data['Heliocentric Julian Date'],
+                    'mag': data['Normalized mag'],
+                    'mag_err': data['Normalized mag (error)'],
+                    'filter': filt
+                })
+                lightcurve_rows.append(df)
 
-                hjd = data["HJD"]
-                mag = data["NORMALIZED_MAG"]
-                mag_err = data["NORMALIZED_MAG_ERR"]
+            if label is not None:
+                labels.append({"id": star_id, "label": label})
 
-                for t, m, e in zip(hjd, mag, mag_err):
-                    all_lc_rows.append({
-                        "id": obj_id,
-                        "time": float(t),
-                        "mag": float(m),
-                        "mag_err": float(e),
-                        "filter": filter_name
-                    })
-            all_ids.add(obj_id)
     except Exception as e:
-        print(f"Error processing {local_path}: {e}")
-        continue
+        print(f"Error processing {local_filename}: {e}")
 
-# safve the combined lightcurve CSV in Microlia format
-lightcurve_df = pd.DataFrame(all_lc_rows)
-lightcurve_df = lightcurve_df[["id", "time", "mag", "mag_err", "filter"]]
-lightcurve_csv_path = os.path.join(output_dir, f"{class_name}_microlia_lightcurves.csv")
-lightcurve_df.to_csv(lightcurve_csv_path, index=False)
+#here, save combined lightcurve CSV for microlia
+if lightcurve_rows:
+    lc_df = pd.concat(lightcurve_rows)
+    lc_df.to_csv(LC_CSV, index=False)
+    print(f"Saved lightcurves to {LC_CSV}")
+else:
+    print("No lightcurve data extracted.")
 
-#save labels CSV
-label_df = pd.DataFrame({
-    "id": sorted(all_ids),
-    "label": [class_name] * len(all_ids)
-})
-label_csv_path = os.path.join(output_dir, f"{class_name}_microlia_labels.csv")
-label_df.to_csv(label_csv_path, index=False)
-
-print(f"\nSaved {len(all_ids)} stars' lightcurves to {lightcurve_csv_path}")
-print(f"Saved labels to {label_csv_path}")
+#now save label CSV for microlia
+if labels:
+    label_df = pd.DataFrame(labels)
+    label_df.to_csv(LABEL_CSV, index=False)
+    print(f"Saved labels to {LABEL_CSV}")
