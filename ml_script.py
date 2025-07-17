@@ -15,23 +15,24 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 input_csv = "/data01/aschweitzer/software/CV_Lightcurves/ml_lcs/ml_table.csv"
 input_df = pd.read_csv(input_csv)
 
+#determine filters by csv table column names
+mag_cols = [c for c in input_df.columns if c.startswith("norm_mag_")]
+filters = [c.replace("norm_mag_", "") for c in mag_cols]
+
 #output containers
 lightcurve_rows = []
 labels = []
 
-# Group by name and filter
-grouped = input_df.groupby(["name", "filter", "fits_path"])
-
-for (name, filt, fits_path), group in tqdm(grouped, total=len(grouped)):
-    #now using the star 'name' as unique ID for microlia
-    star_id = name
+#now iterate over unique star names and fits paths
+for star_name, star_group in tqdm(input_df.groupby("name")):
+    fits_path = star_group["fits_path"].iloc[0]  # assume unique per star
 
     #save label if exists
-    label = group["label"].iloc[0] if "label" in group.columns else None
+    label = star_group["label"].iloc[0] if "label" in star_group.columns else None
     if label is not None:
-        labels.append({"id": star_id, "label": label})
+        labels.append({"id": star_name, "label": label})
 
-    #download FITS if needed
+    #download FITS if not already downloaded
     local_filename = os.path.join(OUTPUT_DIR, os.path.basename(fits_path))
     if not os.path.exists(local_filename):
         url = f"{BASE_URL}/{fits_path}"
@@ -44,34 +45,53 @@ for (name, filt, fits_path), group in tqdm(grouped, total=len(grouped)):
             print(f"Failed to download {url}: {e}")
             continue
 
-    #get HJD from FITS
+    #open FITS file once per star
     try:
         with fits.open(local_filename) as hdul:
-            table_name = f"table_{filt}"
-            if table_name not in hdul:
-                print(f"Missing {table_name} in {fits_path}")
-                continue
-            hjd = hdul[table_name].data["Heliocentric Julian Date"]
+            #for each filter, extract HJD and magnitudes
+            for filt in filters:
+                table_name = f"table_{filt}"
+                if table_name not in hdul:
+                    print(f"Missing {table_name} in {fits_path}")
+                    continue
+
+                #extract HJD
+                hjd = hdul[table_name].data["Heliocentric Julian Date"]
+
+                #extract mag and mag_err columns from input_df for this star and filter
+                mag_col = f"norm_mag_{filt}"
+                mag_err_col = f"norm_mag_err_{filt}"
+                if mag_col not in star_group.columns or mag_err_col not in star_group.columns:
+                    print(f"Missing mag or error columns for filter {filt}")
+                    continue
+
+                #now select and sort by epoch (if exists), else use index
+                if "epoch" in star_group.columns:
+                    star_filter_data = star_group.sort_values("epoch").reset_index(drop=True)
+                else:
+                    star_filter_data = star_group.reset_index(drop=True)
+
+                #check that the length matches
+                if len(hjd) != len(star_filter_data):
+                    print(f"Length mismatch for star {star_name} filter {filt}, skipping.")
+                    continue
+
+                #now buuild output dataframe for this star and filter
+                df = pd.DataFrame({
+                    "id": star_name,
+                    "time": hjd,
+                    "mag": star_filter_data[mag_col],
+                    "mag_err": star_filter_data[mag_err_col],
+                    "filter": filt
+                })
+
+                lightcurve_rows.append(df)
+
     except Exception as e:
         print(f"Error reading FITS {local_filename}: {e}")
         continue
 
-    #now trim group to match HJD length
-    group_sorted = group.sort_values("epoch").reset_index(drop=True)
-    if len(hjd) != len(group_sorted):
-        print(f"Length mismatch for {star_id} {filt}, skipping.")
-        continue
-
-    df = pd.DataFrame({
-        "id": star_id,
-        "time": hjd,
-        "mag": group_sorted["Normalized mag"],
-        "mag_err": group_sorted["Normalized mag (error)"],
-        "filter": filt
-    })
-    lightcurve_rows.append(df)
-
-#save lightcurve CSV
+#save outputs for microlia format
 if lightcurve_rows:
     lc_df = pd.concat(lightcurve_rows, ignore_index=True)
     lc_df.to_csv(LC_CSV, index=False)
@@ -79,8 +99,7 @@ if lightcurve_rows:
 else:
     print("No lightcurve data extracted.")
 
-#save label CSV
 if labels:
-    label_df = pd.DataFrame(labels)
-    label_df.drop_duplicates(subset="id").to_csv(LABEL_CSV, index=False)
+    label_df = pd.DataFrame(labels).drop_duplicates(subset="id")
+    label_df.to_csv(LABEL_CSV, index=False)
     print(f"Saved labels to {LABEL_CSV}")
