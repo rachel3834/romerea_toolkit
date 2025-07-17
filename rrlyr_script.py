@@ -10,12 +10,12 @@ OUTPUT_DIR = "/data01/aschweitzer/software/microlia_output/rrlyr"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 LC_CSV = os.path.join(OUTPUT_DIR, "rrlyr_microlia_lightcurves.csv")
-LABEL_CSV = os.path.join(OUTPUT_DIR, "rrlyr_microlia_labels.csv")
+LABEL_CSV = os.path.join(OUTPUT_DIR, "rrlydr_microlia_labels.csv")
 
 input_csv = "/data01/aschweitzer/software/CV_Lightcurves/rrlyrae_lcs/rrlyr_table.csv"
 input_df = pd.read_csv(input_csv)
 
-# If no label column, add a default one with value "ml"
+# If no label column, add "rrlyr"
 if "label" not in input_df.columns:
     print("No 'label' column found in input CSV; adding default label='rrlyr' for all stars.")
     input_df["label"] = "rrlyr"

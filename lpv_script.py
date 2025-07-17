@@ -15,7 +15,7 @@ LABEL_CSV = os.path.join(OUTPUT_DIR, "lpv_microlia_labels.csv")
 input_csv = "/data01/aschweitzer/software/CV_Lightcurves/lpv_lcs/lpv_table.csv"
 input_df = pd.read_csv(input_csv)
 
-# If no label column, add a default one with value "ml"
+# if no label column, add a default "lpv"
 if "label" not in input_df.columns:
     print("No 'label' column found in input CSV; adding default label='lpv' for all stars.")
     input_df["label"] = "lpv"
