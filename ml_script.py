@@ -9,11 +9,19 @@ BASE_URL = "https://exoplanetarchive.ipac.caltech.edu/workspace/TMP_Z62BKO_8520/
 OUTPUT_DIR = "/data01/aschweitzer/software/microlia_output/ml"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-LC_CSV = os.path.join(OUTPUT_DIR, "microlia_lightcurves.csv")
-LABEL_CSV = os.path.join(OUTPUT_DIR, "microlia_labels.csv")
+LC_CSV = os.path.join(OUTPUT_DIR, "ml_microlia_lightcurves.csv")
+LABEL_CSV = os.path.join(OUTPUT_DIR, "ml_microlia_labels.csv")
 
 input_csv = "/data01/aschweitzer/software/CV_Lightcurves/ml_lcs/ml_table.csv"
 input_df = pd.read_csv(input_csv)
+
+# If no label column, add a default one with value "ml"
+if "label" not in input_df.columns:
+    print("No 'label' column found in input CSV; adding default label='ml' for all stars.")
+    input_df["label"] = "ml"
+elif input_df["label"].isna().all():
+    print("'label' column exists but all values are NaN; filling with default label='ml'.")
+    input_df["label"] = "ml"
 
 # Map filters to FITS HDU names
 filter_hdu_map = {
@@ -29,11 +37,10 @@ for star_name, star_group in tqdm(input_df.groupby("name"), desc="Processing sta
     fits_path = star_group["lc_file_path"].iloc[0]
     local_filename = os.path.join(OUTPUT_DIR, os.path.basename(fits_path))
 
-    # Save label if exists
-    if "label" in star_group.columns:
-        label = star_group["label"].iloc[0]
-        if pd.notna(label):
-            labels.append({"id": star_name, "label": label})
+    # Save label if exists and non-null
+    label = star_group["label"].iloc[0]
+    if pd.notna(label):
+        labels.append({"id": star_name, "label": label})
 
     # Download FITS if needed
     if not os.path.exists(local_filename):
