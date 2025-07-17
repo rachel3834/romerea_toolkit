@@ -69,7 +69,7 @@ for star_name, star_group in tqdm(input_df.groupby("name"), desc="Processing sta
 
                 hjd = data["HJD"][good]
                 norm_mag = data["norm_mag"][good]
-                norm_mag_err = data["norm_mag_err"][good]
+                norm_mag_err = data["norm_mag_error"][good]
 
                 # Match rows in CSV for this filter
                 mag_col = f"norm_mag_{filt}"
