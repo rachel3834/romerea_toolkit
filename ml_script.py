@@ -69,11 +69,11 @@ for star_name, star_group in tqdm(input_df.groupby("name"), desc="Processing sta
 
                 hjd = data["HJD"][good]
                 norm_mag = data["norm_mag"][good]
-                norm_mag_err = data["norm_mag_error"][good]
+                norm_mag_err = data["norm_mag_err"][good]
 
                 # Match rows in CSV for this filter
                 mag_col = f"norm_mag_{filt}"
-                mag_err_col = f"norm_mag_err_{filt}"
+                mag_err_col = f"norm_mag_error_{filt}"
                 if mag_col not in star_group.columns or mag_err_col not in star_group.columns:
                     print(f"Missing columns {mag_col} or {mag_err_col} for star {star_name}, skipping filter {filt}")
                     continue
