@@ -1,87 +1,95 @@
 import os
 import pandas as pd
-import numpy as np
+import requests
 from astropy.io import fits
-from astropy.utils.data import download_file
+from astropy.table import Table
 from tqdm import tqdm
 
-#config
-class_name = "ml"
-dir_name = "ml_lcs"
-base_dir = "/data01/aschweitzer/software/CV_Lightcurves"
-input_csv = os.path.join(base_dir, dir_name, f"{class_name}_table.csv")
-final_dir = "/data01/aschweitzer/software/microlia_output"
-output_dir = os.path.join(final_dir, class_name)
-os.makedirs(output_dir, exist_ok=True)
+#base download URL
+BASE_URL = "https://exoplanetarchive.ipac.caltech.edu/workspace/TMP_Z62BKO_8520/ROME/tab1/data/data_reduction"
+OUTPUT_DIR = "/data01/aschweitzer/software/microlia_output/ml"
+LC_CSV = "microlia_lightcurves.csv"
+LABEL_CSV = "microlia_labels.csv"
 
-#load input table
-df = pd.read_csv(input_csv)
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-#output containers for microlia
-all_lc_rows = []
-all_ids = set()
+#loading input csv
+#cSV has: id,fits_path,label (label is optional)
+input_csv = "/data01/aschweitzer/software/CV_Lightcurves/ml_lcs/ml_table.csv"  
+input_df = pd.read_csv(input_csv)
 
-#url base
-base_url = "https://exoplanetarchive.ipac.caltech.edu/workspace/TMP_Z62BKO_8520/ROME/tab1/data/data_reduction"
 
-#process each fits file
-for _, row in tqdm(df.iterrows(), total=len(df)):
-    fits_path = row.get("fits", "")
+#ensure 'id' is a column (not an index) since error was encountered
+if 'id' not in input_df.columns:
+    input_df.reset_index(inplace=True)
+    if 'id' not in input_df.columns:
+        raise KeyError("'id' column not found in CSV even after reset_index.")
 
-    #skip if no valid fits filename
-    if not isinstance(fits_path, str) or not fits_path.endswith(".fits"):
-        print(f"Skipping (invalid fits path): {fits_path}")
-        continue
 
-    filename = os.path.basename(fits_path)
-    obj_id = os.path.splitext(filename)[0]
-    local_path = os.path.join(output_dir, filename)
+#store final data 
+lightcurve_rows = []
+labels = []
 
-    full_url = f"{base_url}/{fits_path.strip('./')}"
+for _, row in tqdm(input_df.iterrows(), total=len(input_df)):
+    star_id = row["id"]
+    fits_path = row["fits_path"]
+    label = row.get("label", None)
 
-    #download file only if missing
-    if not os.path.exists(local_path):
+    local_filename = os.path.join(OUTPUT_DIR, os.path.basename(fits_path))
+
+    #skip if already downloaded
+    if not os.path.exists(local_filename):
+        url = f"{BASE_URL}/{fits_path}"
         try:
-            temp_path = download_file(full_url, cache=True, show_progress=False, timeout=30)
-            os.rename(temp_path, local_path)
+            r = requests.get(url, timeout=10)
+            r.raise_for_status()
+            with open(local_filename, "wb") as f:
+                f.write(r.content)
         except Exception as e:
-            print(f"Failed to download {full_url}: {e}")
+            print(f"Failed to download {url}: {e}")
             continue
 
-    #now try opening and parsing fits file (careful with 'id')
+    #now open FITS file
     try:
-        with fits.open(local_path) as hdul:
-            for band_key in ["table_i", "table_g", "table_r"]:
-                if band_key not in hdul:
+        with fits.open(local_filename) as hdul:
+            for filt, name in zip(['i', 'g', 'r'], ['table_i', 'table_g', 'table_r']):
+                if name not in hdul:
                     continue
-                table = hdul[band_key].data
-                hjd = table["Heliocentric Julian Date"]
-                norm_mag = table["Normalized mag"]
-                norm_mag_err = table["Normalized mag (error)"]
 
-                for t, m, e in zip(hjd, norm_mag, norm_mag_err):
-                    all_lc_rows.append({
-                        "id": obj_id,
-                        "time": float(t),
-                        "mag": float(m),
-                        "mag_err": float(e),
-                        "filter": band_key[-1]  #looking at last char: 'i', 'g', or 'r'
+                try:
+                    data = Table(hdul[name].data).to_pandas()
+                    if not {'Heliocentric Julian Date', 'Normalized mag', 'Normalized mag (error)'}.issubset(data.columns):
+                        continue
+                    
+                    df = pd.DataFrame({
+                        'id': star_id,
+                        'time': data['Heliocentric Julian Date'],
+                        'mag': data['Normalized mag'],
+                        'mag_err': data['Normalized mag (error)'],
+                        'filter': filt
                     })
-                all_ids.add(obj_id)
+                    lightcurve_rows.append(df)
+                    
+                except Exception as e_inner:
+                    print(f"Error reading filter {filt} in {local_filename}: {e_inner}")
+                    continue
+
+            if label is not None:
+                labels.append({"id": star_id, "label": label})
+
     except Exception as e:
-        print(f"Failed to process {local_path}: {e}")
-        continue
+        print(f"Error processing {local_filename}: {e}")
 
-#save lightcurve CSV (for microlia)
-lightcurve_df = pd.DataFrame(all_lc_rows)
-lightcurve_df = lightcurve_df[["id", "time", "mag", "mag_err", "filter"]]
-lightcurve_df.to_csv(os.path.join(output_dir, "lightcurve.csv"), index=False)
+#here, save combined lightcurve CSV for microlia
+if lightcurve_rows:
+    lc_df = pd.concat(lightcurve_rows)
+    lc_df.to_csv(LC_CSV, index=False)
+    print(f"Saved lightcurves to {LC_CSV}")
+else:
+    print("No lightcurve data extracted.")
 
-#save label CSV (for microlia)
-label_df = pd.DataFrame({
-    "id": sorted(all_ids),
-    "label": [class_name] * len(all_ids)
-})
-label_df.to_csv(os.path.join(output_dir, "label.csv"), index=False)
-
-print(f"\nSaved {len(all_ids)} labeled objects to: {output_dir}")
+#now save label CSV for microlia
+if labels:
+    label_df = pd.DataFrame(labels)
+    label_df.to_csv(LABEL_CSV, index=False)
+    print(f"Saved labels to {LABEL_CSV}")
