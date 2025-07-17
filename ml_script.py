@@ -12,7 +12,7 @@ LABEL_CSV = "microlia_labels.csv"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 #load input
-input_csv = "/data01/aschweitzer/software/CV_Lightcurves/ml_lcs/lpv_table.csv"
+input_csv = "/data01/aschweitzer/software/CV_Lightcurves/ml_lcs/ml_table.csv"
 input_df = pd.read_csv(input_csv)
 
 #output containers
