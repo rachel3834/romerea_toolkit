@@ -1,9 +1,11 @@
+import os
 import pandas as pd
+import numpy as np
 from astropy.io import fits
 from astropy.utils.data import download_file
-import os
+from tqdm import tqdm
 
-#paths
+#config
 class_name = "ml" 
 dir_name = "ml_lcs"
 base_dir = "/data01/aschweitzer/software/CV_Lightcurves"
@@ -12,68 +14,75 @@ final_dir = "/data01/aschweitzer/software/microlia_output"
 output_dir = os.path.join(final_dir, class_name)
 os.makedirs(output_dir, exist_ok=True)
 
-#data storage
-lightcurve_rows = []
-label_rows = []
-
+#input table
 df = pd.read_csv(input_csv)
 
-for i, row in df.iterrows():
-    name = str(row.get("name") or row.get("Name")).strip()
-    field = str(row.get("field") or row.get("Field")).strip()
-    star_id = f"{field}_{name}"
+#storage for microlia format
+all_lc_rows = []
+all_ids = set()
 
-    #last column is the FITS URL
-    fits_url = row.iloc[-1]
-    if not isinstance(fits_url, str) or not fits_url.endswith(".fits"):
-        print(f"Skipping {star_id}: Invalid FITS URL")
+#read each row of table
+for i, row in tqdm(df.iterrows(), total=len(df)):
+    fits_path = row.get("fits", "")
+
+    #skip if not a valid FITS path
+    if not isinstance(fits_path, str) or not fits_path.endswith(".fits"):
         continue
 
+    #convert relative path to full URL
+    if fits_path.startswith("./"):
+        fits_path = fits_path[2:]  # remove './'
+    
+    #making full url
+    base_url = "https://exoplanetarchive.ipac.caltech.edu/data/ROME/data_reduction"
+    full_url = f"{base_url}/{fits_path}"
+
+    #making a local filename
+    filename = os.path.basename(fits_path)
+    local_path = os.path.join(output_dir, filename)
+
+    #download FITS file if not already present
+    if not os.path.exists(local_path):
+        try:
+            temp_path = download_file(full_url, cache=True, show_progress=False, timeout=30)
+            os.rename(temp_path, local_path)
+        except Exception as e:
+            print(f"Failed to download {full_url}: {e}")
+            continue
+
+    #read downloaded FITS file
     try:
-        #download fits to cache so we can actually access the lc data we need inside
-        fits_path = download_file(fits_url, cache=True, timeout=30)
-
-        with fits.open(fits_path) as hdul:
+        with fits.open(local_path) as hdul:
             data = hdul[1].data
-            if data is None or len(data) == 0:
-                print(f" Empty data: {star_id}")
-                continue
+            hjd = data["hjd"]
+            mag = data["mag"]
+            magerr = data["magerr"]
+            band = data["band"]
 
-            if not all(k in data.columns.names for k in ["HJD", "MAG_CALIB", "MAG_CALIB_ERR"]):
-                print(f"Missing columns for {star_id}")
-                continue
+            obj_id = os.path.splitext(filename)[0]  #use FITS filename as ID
+            all_ids.add(obj_id)
 
-            hjd = data["HJD"]
-            mag = data["MAG_CALIB"]
-            mag_err = data["MAG_CALIB_ERR"]
-            filters = data["FILTER"] if "FILTER" in data.columns.names else ["rp"] * len(hjd)
-
-            for t, m, e, f in zip(hjd, mag, mag_err, filters):
-                lightcurve_rows.append({
-                    "id": star_id,
-                    "time": t,
-                    "mag": m,
-                    "mag_err": e,
-                    "filter": f
+            for t, m, e, b in zip(hjd, mag, magerr, band):
+                all_lc_rows.append({
+                    "ID": obj_id,
+                    "HJD": float(t),
+                    "MAG": float(m),
+                    "MAGERR": float(e),
+                    "BAND": b.strip() if isinstance(b, str) else b.decode("utf-8").strip()
                 })
-
-            label_rows.append({
-                "id": star_id,
-                "label": class_name.upper()
-            })
-
-            print(f"Downloaded/processed {star_id} ({len(hjd)} points)")
-
     except Exception as e:
-        print(f"Error processing {star_id}: {e}")
+        print(f"Failed to process {local_path}: {e}")
         continue
 
-#now saving as lc and label csv's that are req. for microlia array format
-lc_path = os.path.join(output_dir, f"{class_name}_microlia_lightcurves.csv")
-label_path = os.path.join(output_dir, f"{class_name}_microlia_labels.csv")
+#save MicroLIA format
+lightcurve_df = pd.DataFrame(all_lc_rows)
+lightcurve_df = lightcurve_df[["ID", "HJD", "MAG", "MAGERR", "BAND"]]  #enforcing specific order
+lightcurve_df.to_csv(os.path.join(output_dir, "lightcurve.csv"), index=False)
 
-pd.DataFrame(lightcurve_rows).to_csv(lc_path, index=False)
-pd.DataFrame(label_rows).to_csv(label_path, index=False)
+label_df = pd.DataFrame({
+    "ID": sorted(all_ids),
+    "LABEL": [class_name] * len(all_ids)
+})
+label_df.to_csv(os.path.join(output_dir, "label.csv"), index=False)
 
-print(f"\n Saved lightcurves to {lc_path}")
-print(f" Sdaved labels to {label_path}")
+print(f"\n Sfaved {len(all_ids)} labeled objects to: {output_dir}")
