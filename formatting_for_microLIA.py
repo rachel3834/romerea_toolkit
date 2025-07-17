@@ -32,7 +32,17 @@ for star_id, group in grouped:
     filename = f"star_{star_id}.csv"
     filepath = os.path.join(star_dir, filename)
     
-    #save as CSV with columns below
-    group[["time", "mag", "mag_err", "filter"]].to_csv(filepath, index=False)
+
+    # Convert all columns to proper types to avoid mixed types
+    group_clean = group[["time", "mag", "mag_err", "filter"]].copy()
+    group_clean["time"] = pd.to_numeric(group_clean["time"], errors='coerce')
+    group_clean["mag"] = pd.to_numeric(group_clean["mag"], errors='coerce')
+    group_clean["mag_err"] = pd.to_numeric(group_clean["mag_err"], errors='coerce')
+    group_clean["filter"] = group_clean["filter"].astype(str)
+
+    # Drop rows with nans
+    group_clean = group_clean.dropna()
+
+    group_clean.to_csv(filepath, index=False)   
 
 print("Conversion complete :)!")
