@@ -26,7 +26,7 @@ lightcurve_rows = []
 labels = []
 
 for star_name, star_group in tqdm(input_df.groupby("name"), desc="Processing stars"):
-    fits_path = star_group["fits_path"].iloc[0]
+    fits_path = star_group["lc_file_path"].iloc[0]
     local_filename = os.path.join(OUTPUT_DIR, os.path.basename(fits_path))
 
     # Save label if exists
