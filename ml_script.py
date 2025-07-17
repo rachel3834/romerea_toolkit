@@ -46,6 +46,9 @@ for i, row in tqdm(df.iterrows(), total=len(df)):
         try:
             temp_path = download_file(full_url, cache=True, show_progress=False, timeout=30)
             os.rename(temp_path, local_path)
+            
+            breakpoint()
+
         except Exception as e:
             print(f"Failed to download {full_url}: {e}")
             continue
