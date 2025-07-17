@@ -13,20 +13,10 @@ LABEL_CSV = "microlia_labels.csv"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-#loading input csv
-#cSV has: id,fits_path,label (label is optional)
+#load input CSV: id,fits_path[,label]
 input_csv = "/data01/aschweitzer/software/CV_Lightcurves/ml_lcs/ml_table.csv"  
 input_df = pd.read_csv(input_csv)
 
-
-#ensure 'id' is a column (not an index) since error was encountered
-if 'id' not in input_df.columns:
-    input_df.reset_index(inplace=True)
-    if 'id' not in input_df.columns:
-        raise KeyError("'id' column not found in CSV even after reset_index.")
-
-
-#store final data 
 lightcurve_rows = []
 labels = []
 
@@ -37,7 +27,7 @@ for _, row in tqdm(input_df.iterrows(), total=len(input_df)):
 
     local_filename = os.path.join(OUTPUT_DIR, os.path.basename(fits_path))
 
-    #skip if already downloaded
+    #download FITS if not already there
     if not os.path.exists(local_filename):
         url = f"{BASE_URL}/{fits_path}"
         try:
@@ -49,30 +39,30 @@ for _, row in tqdm(input_df.iterrows(), total=len(input_df)):
             print(f"Failed to download {url}: {e}")
             continue
 
-    #now open FITS file
+    #open FITS and extract normalized magnitudes per filter
     try:
         with fits.open(local_filename) as hdul:
-            for filt, name in zip(['i', 'g', 'r'], ['table_i', 'table_g', 'table_r']):
-                if name not in hdul:
+            for filt, ext_name in zip(['i', 'g', 'r'], ['table_i', 'table_g', 'table_r']):
+                if ext_name not in hdul:
                     continue
 
-                try:
-                    data = Table(hdul[name].data).to_pandas()
-                    if not {'Heliocentric Julian Date', 'Normalized mag', 'Normalized mag (error)'}.issubset(data.columns):
-                        continue
-                    
-                    df = pd.DataFrame({
-                        'id': star_id,
-                        'time': data['Heliocentric Julian Date'],
-                        'mag': data['Normalized mag'],
-                        'mag_err': data['Normalized mag (error)'],
-                        'filter': filt
-                    })
-                    lightcurve_rows.append(df)
-                    
-                except Exception as e_inner:
-                    print(f"Error reading filter {filt} in {local_filename}: {e_inner}")
+                data = Table(hdul[ext_name].data).to_pandas()
+
+                required_cols = {'Heliocentric Julian Date', 'Normalized mag', 'Normalized mag (error)'}
+                if not required_cols.issubset(data.columns):
+                    print(f"Skipping {star_id}, {ext_name}: missing columns")
                     continue
+
+                #now create dataframe and assign the ID manually from csv table
+                df = pd.DataFrame({
+                    'time': data['Heliocentric Julian Date'],
+                    'mag': data['Normalized mag'],
+                    'mag_err': data['Normalized mag (error)'],
+                })
+                df["id"] = star_id
+                df["filter"] = filt
+
+                lightcurve_rows.append(df)
 
             if label is not None:
                 labels.append({"id": star_id, "label": label})
@@ -80,15 +70,16 @@ for _, row in tqdm(input_df.iterrows(), total=len(input_df)):
     except Exception as e:
         print(f"Error processing {local_filename}: {e}")
 
-#here, save combined lightcurve CSV for microlia
+#save final lightcurve CSV for Microlia
 if lightcurve_rows:
-    lc_df = pd.concat(lightcurve_rows)
+    lc_df = pd.concat(lightcurve_rows, ignore_index=True)
+    lc_df = lc_df[["id", "time", "mag", "mag_err", "filter"]]
     lc_df.to_csv(LC_CSV, index=False)
     print(f"Saved lightcurves to {LC_CSV}")
 else:
     print("No lightcurve data extracted.")
 
-#now save label CSV for microlia
+#save labels CSV
 if labels:
     label_df = pd.DataFrame(labels)
     label_df.to_csv(LABEL_CSV, index=False)
