@@ -4,7 +4,7 @@ import requests
 from astropy.io import fits
 from tqdm import tqdm
 
-# Paths and constants
+# paths and constants
 BASE_URL = "https://exoplanetarchive.ipac.caltech.edu/workspace/TMP_Z62BKO_8520/ROME/tab1/data/data_reduction"
 OUTPUT_DIR = "/data01/aschweitzer/software/microlia_output/ml"
 LC_CSV = os.path.join(OUTPUT_DIR, "microlia_lightcurves.csv")
@@ -15,28 +15,30 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 input_csv = "/data01/aschweitzer/software/CV_Lightcurves/ml_lcs/ml_table.csv"
 input_df = pd.read_csv(input_csv)
 
-# Detect filters from columns
-mag_cols = [c for c in input_df.columns if c.startswith("norm_mag_")]
-filters = [c.replace("norm_mag_", "") for c in mag_cols]
+#filters and HDU names from inspecting fits file
+filter_hdu_map = {
+    "g": "LIGHTCURVE_SDSS_G",
+    "r": "LIGHTCURVE_SDSS_R",
+    "i": "LIGHTCURVE_SDSS_I"
+}
 
-print(f"Detected filters: {filters}")
-
-# Prepare output containers
+#output storage
 lightcurve_rows = []
 labels = []
 
-# Iterate over each star by 'name'
+#now group input by star name (unique ID)
 for star_name, star_group in tqdm(input_df.groupby("name"), desc="Processing stars"):
-    fits_path = star_group["lc_file_path"].iloc[0]
 
-    # Save label if present
+    fits_path = star_group["lc_file_path"].iloc[0]
+    local_filename = os.path.join(OUTPUT_DIR, os.path.basename(fits_path))
+
+    #save label if available
     if "label" in star_group.columns:
         label = star_group["label"].iloc[0]
         if pd.notna(label):
             labels.append({"id": star_name, "label": label})
 
-    # Download FITS if missing
-    local_filename = os.path.join(OUTPUT_DIR, os.path.basename(fits_path))
+    #download FITS if missing
     if not os.path.exists(local_filename):
         url = f"{BASE_URL}/{fits_path}"
         try:
@@ -49,36 +51,42 @@ for star_name, star_group in tqdm(input_df.groupby("name"), desc="Processing sta
             print(f"Failed to download {url}: {e}")
             continue
 
-    # Open FITS once per star
+    #open FITS and extract lightcurves
     try:
         with fits.open(local_filename) as hdul:
-            for filt in filters:
-                table_name = f"table_{filt}"
-                if table_name not in hdul:
-                    print(f"Warning: {table_name} not found in {fits_path}, skipping filter {filt}")
+            for filt, hdu_name in filter_hdu_map.items():
+                if hdu_name not in hdul:
+                    print(f"Warning: {hdu_name} not found in {local_filename}, skipping filter {filt}")
                     continue
 
-                hjd = hdul[table_name].data["Heliocentric Julian Date"]
+                data = hdul[hdu_name].data
 
+                #good quality points filter
+                good = (data["qc_flag"] == 0)
+                if not good.any():
+                    print(f"No good quality data for star {star_name}, filter {filt}")
+                    continue
+
+                hjd = data["HJD"][good]
+                norm_mag = data["norm_mag"][good]
+                norm_mag_err = data["norm_mag_error"][good]
+
+                # Match rows in CSV for this filter
                 mag_col = f"norm_mag_{filt}"
                 mag_err_col = f"norm_mag_err_{filt}"
-
                 if mag_col not in star_group.columns or mag_err_col not in star_group.columns:
-                    print(f"Missing mag or error column for filter {filt} for star {star_name}, skipping.")
+                    print(f"Missing columns {mag_col} or {mag_err_col} for star {star_name}, skipping filter {filt}")
                     continue
 
-                # Sort by epoch if available, else keep order
-                if "epoch" in star_group.columns:
-                    star_filter_data = star_group.sort_values("epoch").reset_index(drop=True)
-                else:
-                    star_filter_data = star_group.reset_index(drop=True)
+                # Get only rows for this filter
+                #mag/error columns existing per filter
+                star_filter_data = star_group[[mag_col, mag_err_col]].reset_index(drop=True)
 
-                # Length check
+                # Length check (CSV vs FITS good data)
                 if len(hjd) != len(star_filter_data):
-                    print(f"Length mismatch for star {star_name} filter {filt}: FITS={len(hjd)} vs CSV={len(star_filter_data)}, skipping.")
+                    print(f"Length mismatch for star {star_name} filter {filt}: FITS={len(hjd)} vs CSV={len(star_filter_data)}. Skipping filter.")
                     continue
 
-                # Build lightcurve dataframe
                 df = pd.DataFrame({
                     "id": star_name,
                     "field": star_group["field"].iloc[0],
@@ -88,11 +96,10 @@ for star_name, star_group in tqdm(input_df.groupby("name"), desc="Processing sta
                     "mag_err": star_filter_data[mag_err_col],
                     "filter": filt
                 })
-
                 lightcurve_rows.append(df)
 
     except Exception as e:
-        print(f"Error opening FITS {local_filename}: {e}")
+        print(f"Error reading FITS {local_filename}: {e}")
         continue
 
 # Save combined lightcurve CSV
