@@ -43,6 +43,12 @@ for star_id, group in grouped:
     # Drop rows with nans
     group_clean = group_clean.dropna()
 
-    group_clean.to_csv(filepath, index=False)   
+    if group_clean.empty:
+        print(f"Skipping star {star_id}: no valid rows after cleaning.")
+        continue
+
+
+    group_clean.to_csv(filepath, index=False, header=False)
+   
 
 print("Conversion complete :)!")
