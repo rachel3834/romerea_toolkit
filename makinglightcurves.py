@@ -7,18 +7,18 @@ from astropy.io import fits
 from romerea_toolkit.hd5_utils import read_star_from_hd5_file
 from romerea_toolkit import crossmatch
 
-#paths
+# Paths
 photo_dir = "/data01/aschweitzer/software/photo_copies"
 output_dir = "/data01/aschweitzer/software/CV_Lightcurves/plots"
 data_dir = "/data01/aschweitzer/data"
 os.makedirs(output_dir, exist_ok=True)
 
-#summarizing output
+# Summary file
 summary_file = os.path.join(output_dir, "CV_field_star_summary.txt")
 with open(summary_file, "w") as f:
     f.write("field_id ra dec quadrant_id\n")
 
-#thru rome field .fits files
+# Loop through ROME fields
 for field_num in range(1, 21):
     print(f"\nProcessing field {field_num:02d}")
     
@@ -40,7 +40,7 @@ for field_num in range(1, 21):
     hjd = image_data["hjd"]
     filters = image_data["filter"]
 
-    #get ra/dec/quad
+    #field_id to RA/Dec/Quadrant
     with fits.open(crossmatch_file) as hdul:
         field_index_data = hdul["FIELD_INDEX"].data
         ra_map = {row["field_id"]: row["ra"] for row in field_index_data}
@@ -64,19 +64,28 @@ for field_num in range(1, 21):
                 print(f"Failed reading quadrant {qid} from {phot_file}: {e}")
                 continue
 
+            #extract magnitude and error columns
             norm_mag = star_lc[:, 7]
             norm_err = star_lc[:, 8]
 
-            final_path = os.path.join(output_dir, f"field{field_id}_quad{quadrant}_qid{qid}_lc.txt")
-            df = pd.DataFrame({
-                "HJD": hjd,
-                "Norm_Mag": norm_mag,
-                "Norm_Mag_Err": norm_err,
-                "Filter": filters
-            })
-            df.to_csv(final_path, index=False, sep=' ', float_format="%.6f")
+            if len(hjd) != len(norm_mag):
+                print(f"Length mismatch for star {qid} in field {field_num}")
+                continue
 
-            #add to summary file
+            # Build DataFrame with flat filter column
+            df = pd.DataFrame({
+                "id": [f"field{field_id}_qid{qid}"] * len(hjd),
+                "time": hjd,
+                "mag": norm_mag,
+                "mag_err": norm_err,
+                "filter": filters
+            })
+
+            #save to file
+            final_path = os.path.join(output_dir, f"field{field_id}_quad{quadrant}_qid{qid}_lc.csv")
+            df.to_csv(final_path, index=False)
+
+            #now append to summary
             ra = ra_map.get(field_id, -99)
             dec = dec_map.get(field_id, -99)
             quad = quad_map.get(field_id, -1)
@@ -84,4 +93,4 @@ for field_num in range(1, 21):
             with open(summary_file, "a") as f:
                 f.write(f"{field_id} {ra:.6f} {dec:.6f} {quad}\n")
 
-            print(f"Saved lightcurve and metadata for field {field_id}, qid {qid}")
+            print(f"Saved lightcurve for field {field_id}, qid {qid}")
