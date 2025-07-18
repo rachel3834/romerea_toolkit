@@ -16,7 +16,7 @@ os.makedirs(output_dir, exist_ok=True)
 # Summary file
 summary_file = os.path.join(output_dir, "CV_field_star_summary.txt")
 with open(summary_file, "w") as f:
-    f.write("field_id ra dec quadrant_id\n")
+    f.write("field_id ra dec quadrant_id!\n")
 
 # Loop through ROME fields
 for field_num in range(1, 21):
