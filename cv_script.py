@@ -19,6 +19,9 @@ summary_rows = []
 all_lightcurve_rows = []
 label_rows = []
 
+# Filter mapping from ROMEREA to Microlia
+filter_map = {"ip": "i", "rp": "r", "gp": "g"}
+
 # Loop through fields
 for field_num in range(1, 21):
     print(f"\nProcessing field {field_num:02d}")
@@ -36,7 +39,7 @@ for field_num in range(1, 21):
     xmatch.load(crossmatch_file, log=None)
     image_data = xmatch.images
     hjd = image_data["hjd"]
-    filters_all = image_data["filter"]
+    filters_all = image_data["filter"].astype(str)
 
     with fits.open(crossmatch_file) as hdul:
         field_index_data = hdul["FIELD_INDEX"].data
@@ -67,22 +70,28 @@ for field_num in range(1, 21):
 
             star_id = f"field{field_id}_quad{quadrant}_qid{qid}"
 
-            df_star = pd.DataFrame({
-                "id": star_id,
-                "time": hjd,
-                "mag": star_lc[:, 7],
-                "mag_err": star_lc[:, 8],
-                "filter": filters_all.astype(str),
-            })
+            # Raw lightcurve columns
+            mag = star_lc[:, 7]
+            mag_err = star_lc[:, 8]
+            valid = np.isfinite(mag) & np.isfinite(mag_err)
 
-            #drop any rows with invalid/missing data
-            df_star = df_star.dropna()
-
-            if df_star.empty:
+            if not np.any(valid):
                 print(f"No valid observations for {star_id}, skipping.")
                 continue
 
-            # Save per-star lightcurve (optional)
+            df_star = pd.DataFrame({
+                "id": star_id,
+                "time": hjd[valid],
+                "mag": mag[valid],
+                "mag_err": mag_err[valid],
+                "filter": [filter_map.get(f, f) for f in filters_all[valid]],  # map to "i", "r", "g"
+            })
+
+            if df_star.empty:
+                print(f"No valid data after filtering for {star_id}, skipping.")
+                continue
+
+            # Save individual CSV (optional)
             single_csv_path = os.path.join(output_dir, f"{star_id}.csv")
             df_star.to_csv(single_csv_path, index=False, float_format="%.6f")
 
@@ -99,18 +108,18 @@ for field_num in range(1, 21):
 
             print(f"Saved lightcurve for {star_id}")
 
-#save summary
+# Save summary CSV
 summary_df = pd.DataFrame(summary_rows)
 summary_df.to_csv(os.path.join(output_dir, "microlia_CV_star_summary.csv"), index=False)
 
-#save combined lightcurve file
+# Save combined lightcurves for Microlia
 combined_lc = pd.concat(all_lightcurve_rows, ignore_index=True)
 combined_lc.to_csv(os.path.join(microlia_out_dir, "cv_microlia_lightcurves.csv"), index=False, float_format="%.6f")
 
-#save labels
+# Save label file
 label_df = pd.DataFrame(label_rows)
 label_df.to_csv(os.path.join(microlia_out_dir, "cv_microlia_labels.csv"), index=False)
 
-print("\n Microlia data export complete!")
-print(f"Lightcurves saved to {microlia_out_dir}/cv_microlia_lightcurves.csv")
-print(f"Labels saved to {microlia_out_dir}/cv_microlia_labels.csv")
+print("\nMicrolia data export complete!")
+print(f"Lightcurves saved to: {microlia_out_dir}/cv_microlia_lightcurves.csv")
+print(f"Labels saved to: {microlia_out_dir}/cv_microlia_labels.csv")
