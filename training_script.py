@@ -1,4 +1,5 @@
 from MicroLIA import training_set, ensemble_model
+from numpy.typing import ArrayLike
 
 #training data folder
 training_data_path = "/data01/aschweitzer/software/microlia_output/training_data"
