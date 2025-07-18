@@ -15,8 +15,7 @@ final_dir = "/data01/aschweitzer/software/microlia_output/const"
 ogle_vars = "/data01/aschweitzer/software/CV_Lightcurves/Const_fits/ogle_var_ids/table_ROMESimplest.csv"
 rome_table = pd.read_csv(ogle_vars)
 os.makedirs(output_dir, exist_ok=True)
-
-
+os.makedirs(final_dir, exist_ok=True)
 
 summary_path = os.path.join(output_dir, "const_star_summary.txt")
 summary_header = "field_id star_id filter weighted_mean RMS median_unc n_obs\n"
@@ -26,6 +25,8 @@ with open(summary_path, "w") as f:
 #starting values
 var_thresh = 0.25
 filters = ["rp", "gp", "ip"]
+filter_rename_map = {"rp": "r", "gp": "g", "ip": "i"}   #rename filters for microlia
+
 min_obs = {"rp": 100, "gp": 100, "ip": 100}
 filter_colors = {"rp": "red", "gp": "green", "ip": "blue"}
 rms_dicts = {"rp": {}, "gp": {}, "ip": {}}
@@ -79,18 +80,11 @@ print(f"[Diagnostic] Total raw obs (ignoring QC): {total_raw_obs}")
 print(f"[Diagnostic] Fraction kept after QC filtering: {total_valid_obs / total_raw_obs:.3f}\n")
 #------------------------------#
 
-
 #now actually building the lcs and txts valid masks
 for j, flt in enumerate(filters):
     fm = filter_masks[flt]  #filter-specific mask on the time axis
-    arr = data[:, fm, :] 
-    #check
-
-
-    #valid mask per observation:
+    arr = data[:, fm, :]
     valid_mask = (arr[:, :, QC_COL] == 0) & (arr[:, :, MAG_COL] > 0) & (arr[:, :, MAG_ERR_COL] < 0.5)
-
-    #counting valid obs per star in a filter
     obs_matrix[:, j] = valid_mask.sum(axis=1)
 
 #print counts
@@ -108,12 +102,10 @@ valid_mask = (
 valid_idx = np.where(valid_mask)[0]
 valid_set = set(valid_idx.tolist())
 
-
 #save matrix
 np.savetxt(os.path.join(output_dir, "obs_counts_matrix.txt"),
            np.column_stack([np.arange(n_stars), obs_matrix]),
            fmt="%d", header="StarID rp gp ip", delimiter="\t")
-
 
 #getting constants from rms made in scatterplots_n_lcs.py
 rms_file = os.path.join(output_dir, "variability_rms_rp.txt")
@@ -121,7 +113,6 @@ if not os.path.exists(rms_file):
     raise FileNotFoundError(f"{rms_file} not found... Try running scatterplots_n_lcs.py first!")
 
 const_ids = []
-#limiting via ogle list of vars (exclude known variables)
 exclude_star_indices = set(rome_table["field_id"].values.astype(int))
 
 #now getting dicts for gp and ip
@@ -134,7 +125,6 @@ for flt in filters:
         if len(mags) > 0:
             rms = np.std(mags)
             rms_dicts[flt][i] = rms
-
 
 with open(rms_file, "r") as f:
     next(f)
@@ -149,8 +139,6 @@ with open(rms_file, "r") as f:
         if None in (rms_gp, rms_ip, rms_rp):
             continue  # skip if any missing
 
-        # get median uncertainties in each filter
-        # get median uncertainties in each filter
         med_unc = {}
         for flt in filters:
             fm = filter_masks[flt]
@@ -158,14 +146,10 @@ with open(rms_file, "r") as f:
             mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0)
             med_unc[flt] = np.median(arr[mask, MAG_ERR_COL]) if np.sum(mask) > 0 else np.inf
 
-        # exclude if *any* median uncertainty is greater than its RMS
         if any(med_unc[flt] > rms_dicts[flt].get(star_idx, np.inf) for flt in filters):
             print(f"Excluded star {star_idx} due to high uncertainty in one or more filters.")
             continue
 
-        
-
-        # also apply rms similarity threshold
         if (
             abs(rms_gp - rms_rp) > 0.5 or
             abs(rms_gp - rms_ip) > 0.5 or
@@ -176,10 +160,9 @@ with open(rms_file, "r") as f:
         if abs(float(rms) - float(fit_rms)) <= var_thresh and star_idx in valid_set and star_idx not in exclude_star_indices:
             const_ids.append((star_idx, field_id, mean))
 
-#now getting a random sample by binning by .5's
+#bin stars by mean mag and sample
 from collections import defaultdict
 
-#collecting stars with mean mags in bins of 0.5
 mag_bin_dict = defaultdict(list)
 bin_width = 0.5
 
@@ -188,11 +171,9 @@ for star_idx, field_id, mean_mag in const_ids:
         bin_key = round(mean_mag / bin_width) * bin_width
         mag_bin_dict[bin_key].append((star_idx, field_id))
 
-#now want to randomly sample from each bin
 total_desired = 700
 all_binned_ids = []
 
-#how many stars per bin?
 n_bins = len(mag_bin_dict)
 per_bin = max(1, total_desired // n_bins)
 
@@ -202,23 +183,16 @@ for bin_key, star_list in mag_bin_dict.items():
     sampled = random.sample(star_list, n_sample)
     all_binned_ids.extend(sampled)
 
-
-#cut down to EXACT total desired (if needed)
 if len(all_binned_ids) > total_desired:
     all_binned_ids = random.sample(all_binned_ids, total_desired)
 
-
 print(f"Selected {len(all_binned_ids)} constant stars!")
 
-const_ids = all_binned_ids
-
-
+# Plotting and saving photometry files for const stars
 for star_idx, field_id in all_binned_ids:
-    
-    all_filter_data = []
     plt.figure(figsize=(7, 5))
     summary_lines = []
-    
+
     for offset, flt in enumerate(filters):
         arr = data[star_idx, filter_masks[flt], :]
         mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0) & (arr[:, MAG_ERR_COL] < 0.5)
@@ -231,33 +205,33 @@ for star_idx, field_id in all_binned_ids:
         wmean = np.average(mag, weights=weights)
         residual = mag - wmean + 0.3 * offset
 
-        #unweighted rms! (since median u. is unweighted too)
         rms = np.std(mag)
         med_u = np.median(err)
         n_obs = len(hjd)
-        summary_lines.append(f"{field_id} {star_idx} {flt} {wmean:.4f} {rms:.4f} {med_u:.4f} {n_obs}")
         
+        # Use renamed filter for summary and plotting labels
+        renamed_flt = filter_rename_map.get(flt, flt)
+        summary_lines.append(f"{field_id} {star_idx} {renamed_flt} {wmean:.4f} {rms:.4f} {med_u:.4f} {n_obs}")
+
         plt.errorbar(hjd, residual, yerr=err, fmt='o', ms=3, alpha=0.4,
                      color=filter_colors[flt],
-                     label=f"{flt}: μ={wmean:.2f}, RMS={rms:.2f}, σₘ={med_u:.2f}, N={n_obs}")
-        
-        #plot mean lines
+                     label=f"{renamed_flt}: μ={wmean:.2f}, RMS={rms:.2f}, σₘ={med_u:.2f}, N={n_obs}")
+
         plt.axhline(0.3 * offset, color=filter_colors[flt], linestyle='--', linewidth=1.0, alpha=0.6)
 
-        #save photometry
         phot_with_fid = np.column_stack([arr[mask], np.full(n_obs, field_id)]).astype(np.float64)
         header = (
-        f"# Star ID: {star_idx}, Field ID: {field_id}, Filter: {flt}\n"
-        f"# Weighted Mean = {wmean:.4f}, RMS = {rms:.4f}, Median Uncertainty = {med_u:.4f}, N_obs = {n_obs}\n"
-        "HJD Inst_Mag Inst_Mag_Err Calib_Mag Calib_Mag_Err Corr_Mag Corr_Mag_Err "
-        "Norm_Mag Norm_Mag_Err Phot_Scale Phot_Scale_Err Stamp_Idx Sky_Bkgd "
-        "Sky_Bkgd_Err Residual_X Residual_Y QC_Flag Field_ID")
-
-        np.savetxt(
-            os.path.join(output_dir, f"field{field_id}_const_star{star_idx}_{flt}_photometry.txt"),
-            phot_with_fid, fmt="%.6f", header=header, delimiter="\t"
+            f"# Star ID: {star_idx}, Field ID: {field_id}, Filter: {renamed_flt}\n"
+            f"# Weighted Mean = {wmean:.4f}, RMS = {rms:.4f}, Median Uncertainty = {med_u:.4f}, N_obs = {n_obs}\n"
+            "HJD Inst_Mag Inst_Mag_Err Calib_Mag Calib_Mag_Err Corr_Mag Corr_Mag_Err "
+            "Norm_Mag Norm_Mag_Err Phot_Scale Phot_Scale_Err Stamp_Idx Sky_Bkgd "
+            "Sky_Bkgd_Err Residual_X Residual_Y QC_Flag Field_ID"
         )
 
+        np.savetxt(
+            os.path.join(output_dir, f"field{field_id}_const_star{star_idx}_{renamed_flt}_photometry.txt"),
+            phot_with_fid, fmt="%.6f", header=header, delimiter="\t"
+        )
 
     for line in summary_lines:
         with open(summary_path, "a") as f:
@@ -273,14 +247,10 @@ for star_idx, field_id in all_binned_ids:
     plt.savefig(os.path.join(output_dir, f"field{field_id}_const_star{star_idx}_ALL_resid_lc.png"))
     plt.close()
 
-
-
-
-#FINAL CSV SAVE FILE FOR MICROLIA
+# FINAL CSV SAVE FILE FOR MICROLIA
 csv_summary_path = os.path.join(output_dir, "const_star_photometry_summary.csv")
 summary_rows = []
 
-#field index info for RA/Dec and quadrant_id
 with fits.open(crossmatch_path) as hdul:
     field_index_table = hdul["FIELD_INDEX"].data
 
@@ -290,7 +260,6 @@ for star_idx, field_id in all_binned_ids:
         "field_id": int(field_id)
     }
 
-    #match field_id to RA, Dec, and quadrant_id
     match = field_index_table[field_index_table["field_id"] == int(field_id)]
     if len(match) > 0:
         row_data["ra"] = match["ra"][0]
@@ -305,8 +274,8 @@ for star_idx, field_id in all_binned_ids:
         arr = data[star_idx, filter_masks[flt], :]
         mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0) & (arr[:, MAG_ERR_COL] < 0.5)
         if np.sum(mask) == 0:
-            row_data[f"{flt}_norm_mag"] = np.nan
-            row_data[f"{flt}_norm_mag_err"] = np.nan
+            row_data[f"{filter_rename_map[flt]}_norm_mag"] = np.nan
+            row_data[f"{filter_rename_map[flt]}_norm_mag_err"] = np.nan
             continue
 
         mag = arr[mask, MAG_COL]
@@ -315,18 +284,16 @@ for star_idx, field_id in all_binned_ids:
         wmean = np.average(mag, weights=weights)
         med_u = np.median(err)
 
-        row_data[f"{flt}_norm_mag"] = round(wmean, 4)
-        row_data[f"{flt}_norm_mag_err"] = round(med_u, 4)
+        row_data[f"{filter_rename_map[flt]}_norm_mag"] = round(wmean, 4)
+        row_data[f"{filter_rename_map[flt]}_norm_mag_err"] = round(med_u, 4)
 
     summary_rows.append(row_data)
 
-#convert and write to csv file
 df_summary = pd.DataFrame(summary_rows)
 df_summary.to_csv(csv_summary_path, index=False)
 print(f"\nSaved full star summary CSV to: {csv_summary_path}")
 
-
-#lightcurve CSV for Microlia
+# lightcurve CSV for Microlia
 lightcurve_rows = []
 
 for star_idx, field_id in all_binned_ids:
@@ -341,21 +308,21 @@ for star_idx, field_id in all_binned_ids:
         mag = arr[mask, MAG_COL]
         err = arr[mask, MAG_ERR_COL]
 
+        renamed_flt = filter_rename_map.get(flt, flt)
+
         for t, m, e in zip(hjd, mag, err):
             lightcurve_rows.append({
                 "id": f"{field_id}_{star_idx}",
                 "time": t,
                 "mag": m,
                 "mag_err": e,
-                "filter": flt
+                "filter": renamed_flt
             })
 
-#save to CSV
 lightcurve_df = pd.DataFrame(lightcurve_rows)
 lightcurve_csv_path = os.path.join(final_dir, "const_microlia_lightcurves.csv")
 lightcurve_df.to_csv(lightcurve_csv_path, index=False)
 print(f"Microlia-compatible lightcurve CSV saved to: {lightcurve_csv_path}")
-
 
 label_rows = []
 
@@ -369,15 +336,3 @@ label_df = pd.DataFrame(label_rows)
 label_csv_path = os.path.join(final_dir, "const_microlia_labels.csv")
 label_df.to_csv(label_csv_path, index=False)
 print(f"Microlia-compatible label CSV saved to: {label_csv_path}")
-
-label_rows = []
-
-for star_idx, field_id in all_binned_ids:
-    label_rows.append({
-        "id": f"{field_id}_{star_idx}",
-        "label": "CONST"
-    })
-
-
-
-
