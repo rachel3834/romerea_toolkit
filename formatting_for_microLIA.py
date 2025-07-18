@@ -33,15 +33,23 @@ for star_id, group in grouped:
     filepath = os.path.join(star_dir, filename)
     
 
-    # Convert all columns to proper types to avoid mixed types
+
     group_clean = group[["time", "mag", "mag_err", "filter"]].copy()
+
+    # Force numeric conversion; invalid parsing will be NaN
     group_clean["time"] = pd.to_numeric(group_clean["time"], errors='coerce')
     group_clean["mag"] = pd.to_numeric(group_clean["mag"], errors='coerce')
     group_clean["mag_err"] = pd.to_numeric(group_clean["mag_err"], errors='coerce')
-    group_clean["filter"] = group_clean["filter"].astype(str)
 
-    # Drop rows with nans
-    group_clean = group_clean.dropna()
+    # Drop any rows where numeric conversion failed
+    group_clean = group_clean.dropna(subset=["time", "mag", "mag_err"])
+
+    # Ensure filter column is a string with only expected values
+    valid_filters = {"g", "r", "i"}
+    group_clean["filter"] = group_clean["filter"].astype(str).str.strip()
+
+    # Filter to only valid filters
+    group_clean = group_clean[group_clean["filter"].isin(valid_filters)]
 
     if group_clean.empty:
         print(f"Skipping star {star_id}: no valid rows after cleaning.")
