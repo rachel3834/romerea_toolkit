@@ -36,19 +36,21 @@ for star_id, group in grouped:
 
     group_clean = group[["time", "mag", "mag_err", "filter"]].copy()
 
-    # Force numeric conversion; invalid parsing will be NaN
+    #force numeric conversion else NaN
     group_clean["time"] = pd.to_numeric(group_clean["time"], errors='coerce')
     group_clean["mag"] = pd.to_numeric(group_clean["mag"], errors='coerce')
     group_clean["mag_err"] = pd.to_numeric(group_clean["mag_err"], errors='coerce')
 
-    # Drop any rows where numeric conversion failed
+    #drop any rows where numeric conversion failed
     group_clean = group_clean.dropna(subset=["time", "mag", "mag_err"])
 
-    # Ensure filter column is a string with only expected values
+    group_clean = group_clean[group_clean["mag"] >= 0]
+
+    #ensure filter column is labeled right
     valid_filters = {"g", "r", "i"}
     group_clean["filter"] = group_clean["filter"].astype(str).str.strip()
 
-    # Filter to only valid filters
+    #filter to only valid filters
     group_clean = group_clean[group_clean["filter"].isin(valid_filters)]
 
     if group_clean.empty:
