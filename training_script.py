@@ -12,7 +12,7 @@ root = "/data01/aschweitzer/software/microlia_output/training_data"
 X = []
 Y = []
 
-for label in ['constant', 'variable']:
+for label in ['CONST', 'rrlyr', 'lpv', 'ml', 'CV']:
     subdir = os.path.join(root, label)
     for fname in os.listdir(subdir):
         if not fname.endswith(".csv"):
