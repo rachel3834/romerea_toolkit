@@ -293,10 +293,20 @@ df_summary = pd.DataFrame(summary_rows)
 df_summary.to_csv(csv_summary_path, index=False)
 print(f"\nSaved full star summary CSV to: {csv_summary_path}")
 
-# lightcurve CSV for Microlia
+# ... [rest of your script above unchanged] ...
+
+import os
+
+TRAINING_DIR = "/data01/aschweitzer/software/microlia_output/training_data"
+label_for_training = "CONST"
+star_training_dir = os.path.join(TRAINING_DIR, label_for_training)
+os.makedirs(star_training_dir, exist_ok=True)
+
+# lightcurve CSV for Microlia (combined)
 lightcurve_rows = []
 
 for star_idx, field_id in all_binned_ids:
+    star_dfs = []  # collect per-filter dataframes to save per-star CSVs
     for flt in filters:
         arr = data[star_idx, filter_masks[flt], :]
         mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0) & (arr[:, MAG_ERR_COL] < 0.5)
@@ -310,6 +320,7 @@ for star_idx, field_id in all_binned_ids:
 
         renamed_flt = filter_rename_map.get(flt, flt)
 
+        #append to combined lightcurve list
         for t, m, e in zip(hjd, mag, err):
             lightcurve_rows.append({
                 "id": f"{field_id}_{star_idx}",
@@ -319,17 +330,41 @@ for star_idx, field_id in all_binned_ids:
                 "filter": renamed_flt
             })
 
+        #collect per-filter dataframe for per-star saving
+        df_filt = pd.DataFrame({
+            "time": hjd,
+            "mag": mag,
+            "mag_err": err,
+            "filter": renamed_flt
+        })
+        star_dfs.append(df_filt)
+
+    #save one CSV per star in Microlia training data format
+    if star_dfs:
+        star_df = pd.concat(star_dfs, ignore_index=True)
+        star_filename = f"star_{field_id}_{star_idx}.csv"
+        star_filepath = os.path.join(star_training_dir, star_filename)
+
+        star_df.to_csv(
+            star_filepath,
+            index=False,
+            header=False,
+            float_format="%.6f"
+        )
+        print(f"Saved Microlia training lightcurve for star {field_id}_{star_idx} at {star_filepath}")
+
+#also save combined CSV lightcurves
 lightcurve_df = pd.DataFrame(lightcurve_rows)
 lightcurve_csv_path = os.path.join(final_dir, "const_microlia_lightcurves.csv")
 lightcurve_df.to_csv(lightcurve_csv_path, index=False)
-print(f"Microlia-compatible lightcurve CSV saved to: {lightcurve_csv_path}")
+print(f"Microlia-compatible combined lightcurve CSV saved to {lightcurve_csv_path}")
 
+#save labels CSV
 label_rows = []
-
 for star_idx, field_id in all_binned_ids:
     label_rows.append({
         "id": f"{field_id}_{star_idx}",
-        "label": "CONST"
+        "label": label_for_training
     })
 
 label_df = pd.DataFrame(label_rows)

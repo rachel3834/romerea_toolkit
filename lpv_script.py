@@ -7,7 +7,9 @@ from tqdm import tqdm
 # Constants and paths
 BASE_URL = "https://exoplanetarchive.ipac.caltech.edu/workspace/TMP_Z62BKO_8520/ROME/tab1/data/data_reduction"
 OUTPUT_DIR = "/data01/aschweitzer/software/microlia_output/lpv"
+TRAINING_DIR = "/data01/aschweitzer/software/microlia_output/training_data"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(TRAINING_DIR, exist_ok=True)
 
 LC_CSV = os.path.join(OUTPUT_DIR, "lpv_microlia_lightcurves.csv")
 LABEL_CSV = os.path.join(OUTPUT_DIR, "lpv_microlia_labels.csv")
@@ -15,7 +17,7 @@ LABEL_CSV = os.path.join(OUTPUT_DIR, "lpv_microlia_labels.csv")
 input_csv = "/data01/aschweitzer/software/CV_Lightcurves/lpv_lcs/lpv_table.csv"
 input_df = pd.read_csv(input_csv)
 
-# if no label column, add a default "lpv"
+#if no label column, add "lpv"
 if "label" not in input_df.columns:
     print("No 'label' column found in input CSV; adding default label='lpv' for all stars.")
     input_df["label"] = "lpv"
@@ -23,7 +25,7 @@ elif input_df["label"].isna().all():
     print("'label' column exists but all values are NaN; filling with default label='lpv'.")
     input_df["label"] = "lpv"
 
-# Map filters to FITS HDU names
+#map filters to FITS HDU names
 filter_hdu_map = {
     "g": "LIGHTCURVE_SDSS_G",
     "r": "LIGHTCURVE_SDSS_R",
@@ -42,7 +44,7 @@ for star_name, star_group in tqdm(input_df.groupby("name"), desc="Processing sta
     if pd.notna(label):
         labels.append({"id": star_name, "label": label})
 
-    # Download FITS if needed
+    #download FITS if needed
     if not os.path.exists(local_filename):
         url = f"{BASE_URL}/{fits_path}"
         try:
@@ -55,9 +57,10 @@ for star_name, star_group in tqdm(input_df.groupby("name"), desc="Processing sta
             print(f"Failed to download {url}: {e}")
             continue
 
-    # Read FITS and extract filtered lightcurve data
+    #read FITS and extract filtered lightcurve data
     try:
         with fits.open(local_filename) as hdul:
+            star_dfs = []
             for filt, hdu_name in filter_hdu_map.items():
                 if hdu_name not in hdul:
                     print(f"Warning: {hdu_name} missing in {local_filename}, skipping {filt}")
@@ -74,30 +77,47 @@ for star_name, star_group in tqdm(input_df.groupby("name"), desc="Processing sta
 
                 df = pd.DataFrame({
                     "id": star_name,
-                    "field": star_group["field"].iloc[0],
-                    "field_id": star_group["field_id"].iloc[0],
                     "time": hjd,
                     "mag": norm_mag,
                     "mag_err": norm_mag_err,
                     "filter": filt
                 })
-                lightcurve_rows.append(df)
+                star_dfs.append(df)
+                lightcurve_rows.append(df)  # for combined CSV saving
+
+            #combine all filters for this star into one DataFrame
+            if star_dfs:
+                star_df = pd.concat(star_dfs, ignore_index=True)
+
+                # sve to training data directory in Microlia format:
+                star_dir = os.path.join(TRAINING_DIR, label)
+                os.makedirs(star_dir, exist_ok=True)
+
+                star_filename = f"star_{star_name}.csv"
+                star_filepath = os.path.join(star_dir, star_filename)
+
+                # Save with no header, no index
+                star_df[["time", "mag", "mag_err", "filter"]].to_csv(
+                    star_filepath, index=False, header=False, float_format="%.6f"
+                )
+
+                print(f"Saved Microlia training lightcurve for {star_name} in label folder {label}")
+
     except Exception as e:
         print(f"Error reading FITS {local_filename}: {e}")
         continue
 
-# Save output lightcurves CSV
+#save combined CSV and labels CSV
 if lightcurve_rows:
     all_lcs = pd.concat(lightcurve_rows, ignore_index=True)
     all_lcs.to_csv(LC_CSV, index=False)
-    print(f"Saved lightcurves to {LC_CSV}")
+    print(f"Saved combined lightcurves CSV to {LC_CSV}")
 else:
     print("No lightcurve data extracted.")
 
-# Save labels CSV
 if labels:
     label_df = pd.DataFrame(labels).drop_duplicates(subset="id")
     label_df.to_csv(LABEL_CSV, index=False)
-    print(f"Saved labels to {LABEL_CSV}")
+    print(f"Saved labels CSV to {LABEL_CSV}")
 else:
     print("No labels to save.")
