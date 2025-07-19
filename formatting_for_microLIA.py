@@ -46,6 +46,9 @@ for star_id, group in grouped:
 
     group_clean = group_clean[group_clean["mag"] >= 0]
 
+    # Replace gp/rp/ip → g/r/i
+    group_clean["filter"] = group_clean["filter"].replace({"gp": "g", "rp": "r", "ip": "i"})
+
     #ensure filter column is labeled right
     valid_filters = {"g", "r", "i"}
     group_clean["filter"] = group_clean["filter"].astype(str).str.strip()

@@ -10,7 +10,7 @@ OUTPUT_DIR = "/data01/aschweitzer/software/microlia_output/rrlyr"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 LC_CSV = os.path.join(OUTPUT_DIR, "rrlyr_microlia_lightcurves.csv")
-LABEL_CSV = os.path.join(OUTPUT_DIR, "rrlydr_microlia_labels.csv")
+LABEL_CSV = os.path.join(OUTPUT_DIR, "rrlyr_microlia_labels.csv")
 
 input_csv = "/data01/aschweitzer/software/CV_Lightcurves/rrlyrae_lcs/rrlyr_table.csv"
 input_df = pd.read_csv(input_csv)

@@ -116,10 +116,27 @@ summary_df.to_csv(os.path.join(output_dir, "microlia_CV_star_summary.csv"), inde
 combined_lc = pd.concat(all_lightcurve_rows, ignore_index=True)
 combined_lc.to_csv(os.path.join(microlia_out_dir, "cv_microlia_lightcurves.csv"), index=False, float_format="%.6f")
 
-# Save label file
+# Save label file sep.
 label_df = pd.DataFrame(label_rows)
 label_df.to_csv(os.path.join(microlia_out_dir, "cv_microlia_labels.csv"), index=False)
 
 print("\nMicrolia data export complete!")
 print(f"Lightcurves saved to: {microlia_out_dir}/cv_microlia_lightcurves.csv")
 print(f"Labels saved to: {microlia_out_dir}/cv_microlia_labels.csv")
+
+
+#now also move outputs into Microlia format directory
+microlia_train_dir = os.path.join(microlia_out_dir, "training_data", "ML")
+os.makedirs(microlia_train_dir, exist_ok=True)
+
+#copy lightcurves and labels into training_data/ML/
+final_lc_path = os.path.join(microlia_train_dir, "lightcurves.csv")
+final_label_path = os.path.join(microlia_train_dir, "labels.csv")
+
+combined_lc.to_csv(final_lc_path, index=False, float_format="%.6f")
+label_df.to_csv(final_label_path, index=False)
+
+print(f"\n Microlia-ready files exported to: {microlia_train_dir}")
+print(f" Lightcurves: {final_lc_path}")
+print(f" Labels: {final_label_path}")
+
