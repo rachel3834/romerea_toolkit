@@ -61,11 +61,17 @@ for field_num in range(1, 21):
         for _, row in group.iterrows():
             qid = int(row["quadrant_id"])
             field_id = int(row["field_id"])
+            print(f"Original dtype: {star_lc.dtype}, native? {star_lc.dtype.isnative}")
 
             try:
                 star_lc = read_star_from_hd5_file(phot_file, qid)
+
+                #force numpy to copy to native-endian dtype
                 if not star_lc.dtype.isnative:
-                    star_lc = star_lc.byteswap().newbyteorder()
+                    star_lc = np.array(star_lc, dtype=star_lc.dtype.newbyteorder("="))
+                    print(f"Original dtype: {star_lc.dtype}, native? {star_lc.dtype.isnative}")
+
+
             except Exception as e:
                 print(f"Failed reading qid {qid} from {phot_file}: {e}")
                 continue
