@@ -1,57 +1,39 @@
 from MicroLIA import training_set, ensemble_model
-from numpy.typing import ArrayLike
-
-#training data folder
-training_data_path = "/data01/aschweitzer/software/microlia_output/training_data"
-
-#--------CHECKKKK!!!!---------#
 import os
-import pandas as pd
-
-root = "/data01/aschweitzer/software/microlia_output/training_data"
-X = []
-Y = []
-
-for label in ['CONST', 'rrlyr', 'lpv', 'ml', 'CV']:
-    subdir = os.path.join(root, label)
-    for fname in os.listdir(subdir):
-        if not fname.endswith(".csv"):
-            continue
-        path = os.path.join(subdir, fname)
-        try:
-            df = pd.read_csv(path)
-            if set(['time', 'mag', 'mag_err', 'filter']).issubset(df.columns) and not df.empty:
-                X.append(df)
-                Y.append(label)
-                print(f"Loaded {fname}")
-            else:
-                print(f"Skipped {fname}: missing columns or empty")
-        except Exception as e:
-            print(f"Failed to load {fname}: {e}")
-
-print(f"\nTotal loaded: {len(X)} lightcurves")
-#-------------!!!!!------------#
-
-data_x, data_y = training_set.load_all(path=training_data_path)
-
-
-#now create the ensemble model with feature extraction and optimization
-model = ensemble_model.Classifier(
-    data_x,
-    data_y,
-    impute=True,          #handle missing values
-    optimize=True,        #perform hyperparameter opt.
-    opt_cv=3,             #num. of CV folds during opt.
-    boruta_trials=25,     #boruta feature selection trials
-    n_iter=25             #number of iter. for ensemble opt.
-)
-
-#train the model
-model.create()
-
-#save the model to disk so we can reuse it later w/o retraining
 import pickle
-with open("/data01/aschweitzer/software/microlia_output/model.pkl", "wb") as f:
-    pickle.dump(model, f)
 
-print("Training complete and model saved.")
+#base path for training data folders
+base_training_path = "/data01/aschweitzer/software/microlia_output"
+
+#list filters to train on
+filters = ["i", "g", "r"]
+
+#now loop over each filter
+for filt in filters:
+    training_data_path = os.path.join(base_training_path, f"training_data_{filt}")
+
+    #load training data via microlia
+    data_x, data_y = training_set.load_all(path=training_data_path, filters=[filt])
+
+    print(f"Loaded {len(data_x)} lightcurves for filter {filt}")
+
+    #create and optimize the model
+    model = ensemble_model.Classifier(
+        data_x,
+        data_y,
+        impute=True,
+        optimize=True,
+        opt_cv=3,
+        boruta_trials=25,
+        n_iter=25
+    )
+
+    #train the model
+    model.create()
+
+    #save model
+    model_path = os.path.join(base_training_path, f"model_{filt}.pkl")
+    with open(model_path, "wb") as f:
+        pickle.dump(model, f)
+
+    print(f"Training complete and model for filter '{filt}' saved to {model_path}")
