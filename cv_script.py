@@ -68,7 +68,7 @@ for field_num in range(1, 21):
 
                 #force numpy to copy to native-endian dtype
                 if not star_lc.dtype.isnative:
-                    star_lc = np.array(star_lc, dtype=star_lc.dtype.newbyteorder("="))
+                    star_lc = star_lc.byteswap().newbyteorder() #TRYING TO FIX ENDIAN ERROR BY CONVERTING TO NATIVE DTYPE
                     print(f"Original dtype: {star_lc.dtype}, native? {star_lc.dtype.isnative}")
 
 
