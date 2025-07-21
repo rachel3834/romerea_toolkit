@@ -64,6 +64,9 @@ for field_num in range(1, 21):
 
             try:
                 star_lc = read_star_from_hd5_file(phot_file, qid)
+                if not star_lc.dtype.isnative:
+                    star_lc = star_lc.byteswap().newbyteorder()
+
             except Exception as e:
                 print(f"Failed reading qid {qid} from {phot_file}: {e}")
                 continue
