@@ -7,22 +7,25 @@ import os
 from astropy.io import fits
 from romerea_toolkit.hd5_utils import read_star_from_hd5_file
 from romerea_toolkit import crossmatch
+from tqdm import tqdm
 
 photo_dir = "/data01/aschweitzer/software/photo_copies"
 data_dir = "/data01/aschweitzer/data"
 output_dir = "/data01/aschweitzer/software/CV_Lightcurves/plots"
-microlia_out_dir = "/data01/aschweitzer/software/microlia_output/cv"
+microlia_out_base = "/data01/aschweitzer/software/microlia_output/cv"
 os.makedirs(output_dir, exist_ok=True)
-os.makedirs(microlia_out_dir, exist_ok=True)
+os.makedirs(microlia_out_base, exist_ok=True)
+
+#filter mapping from ROMEREA filters to Microlia filters
+filter_map = {"ip": "i", "rp": "r", "gp": "g"}
+
+#microlia training base dir root (per filter and label)
+TRAINING_BASE = "/data01/aschweitzer/software/microlia_output/training_data"
 
 summary_rows = []
 all_lightcurve_rows = []
-label_rows = []
 
-# Filter mapping from ROMEREA to Microlia
-filter_map = {"ip": "i", "rp": "r", "gp": "g"}
 
-# Loop through fields
 for field_num in range(1, 21):
     print(f"\nProcessing field {field_num:02d}")
 
@@ -38,7 +41,7 @@ for field_num in range(1, 21):
     xmatch = crossmatch.CrossMatchTable()
     xmatch.load(crossmatch_file, log=None)
     image_data = xmatch.images
-    hjd = image_data["hjd"]
+    hjd_all = image_data["hjd"]
     filters_all = image_data["filter"].astype(str)
 
     with fits.open(crossmatch_file) as hdul:
@@ -70,7 +73,7 @@ for field_num in range(1, 21):
 
             star_id = f"field{field_id}_quad{quadrant}_qid{qid}"
 
-            # Raw lightcurve columns
+            #LC columns
             mag = star_lc[:, 7]
             mag_err = star_lc[:, 8]
             valid = np.isfinite(mag) & np.isfinite(mag_err)
@@ -79,64 +82,61 @@ for field_num in range(1, 21):
                 print(f"No valid observations for {star_id}, skipping.")
                 continue
 
-            df_star = pd.DataFrame({
-                "id": star_id,
-                "time": hjd[valid],
+            #fine filter for each observation and map it
+            #filters_all matches time axis of star_lc for all stars — so now we can find filter per obs:
+            filters_valid = [filter_map.get(f, f) for f in filters_all[valid]]
+
+            # group data by filter
+            df_full = pd.DataFrame({
+                "time": hjd_all[valid],
                 "mag": mag[valid],
                 "mag_err": mag_err[valid],
-                "filter": [filter_map.get(f, f) for f in filters_all[valid]],  # map to "i", "r", "g"
+                "filter": filters_valid
             })
 
-            if df_star.empty:
-                print(f"No valid data after filtering for {star_id}, skipping.")
+            if df_full.empty:
+                print(f"No valid data for {star_id}, skipping")
                 continue
 
-            # Save individual CSV (optional)
-            single_csv_path = os.path.join(output_dir, f"{star_id}.csv")
-            df_star.to_csv(single_csv_path, index=False, float_format="%.6f")
+            #save csv files with time hjd, mag, mag_err
+            for filt, df_filt in df_full.groupby("filter"):
+                # output directory per filter and label
+                out_dir = os.path.join(f"{TRAINING_BASE}_{filt}")
+                os.makedirs(out_dir, exist_ok=True)
 
-            all_lightcurve_rows.append(df_star)
-            label_rows.append({"id": star_id, "label": "CV"})
+                filename = f"{star_id}.csv"
+                filepath = os.path.join(out_dir, filename)
+
+                df_to_save = df_filt[["time", "mag", "mag_err"]]
+                df_to_save.to_csv(filepath, index=False, header=False, float_format="%.6f")
+
+                print(f"Saved to {filepath}")
+
+            #combined CSV analysis
+            df_full["id"] = star_id
+            all_lightcurve_rows.append(df_full)
+
+            #summary info
             summary_rows.append({
                 "id": star_id,
                 "field_id": field_id,
                 "ra": ra,
                 "dec": dec,
                 "quadrant_id": quadrant_val,
-                "n_obs": len(df_star),
+                "n_obs": len(df_full)
             })
 
-            print(f"Saved lightcurve for {star_id}")
-
-# Save summary CSV
+#now save summary CSV
 summary_df = pd.DataFrame(summary_rows)
-summary_df.to_csv(os.path.join(output_dir, "microlia_CV_star_summary.csv"), index=False)
+summary_path = os.path.join(output_dir, "microlia_CV_star_summary.csv")
+summary_df.to_csv(summary_path, index=False)
+print(f"Saved summary CSV to {summary_path}")
 
-# Save combined lightcurves for Microlia
-combined_lc = pd.concat(all_lightcurve_rows, ignore_index=True)
-combined_lc.to_csv(os.path.join(microlia_out_dir, "cv_microlia_lightcurves.csv"), index=False, float_format="%.6f")
+#save combined CSV for analysis
+if all_lightcurve_rows:
+    combined_lc = pd.concat(all_lightcurve_rows, ignore_index=True)
+    combined_path = os.path.join(microlia_out_base, "cv_microlia_lightcurves.csv")
+    combined_lc.to_csv(combined_path, index=False, float_format="%.6f")
+    print(f"Saved combined lightcurve CSV to {combined_path}")
 
-# Save label file sep.
-label_df = pd.DataFrame(label_rows)
-label_df.to_csv(os.path.join(microlia_out_dir, "cv_microlia_labels.csv"), index=False)
-
-print("\nMicrolia data export complete!")
-print(f"Lightcurves saved to: {microlia_out_dir}/cv_microlia_lightcurves.csv")
-print(f"Labels saved to: {microlia_out_dir}/cv_microlia_labels.csv")
-
-
-#now also move outputs into Microlia format directory
-microlia_train_dir = os.path.join(microlia_out_dir, "training_data", "ML")
-os.makedirs(microlia_train_dir, exist_ok=True)
-
-#copy lightcurves and labels into training_data/ML/
-final_lc_path = os.path.join(microlia_train_dir, "lightcurves.csv")
-final_label_path = os.path.join(microlia_train_dir, "labels.csv")
-
-combined_lc.to_csv(final_lc_path, index=False, float_format="%.6f")
-label_df.to_csv(final_label_path, index=False)
-
-print(f"\n Microlia-ready files exported to: {microlia_train_dir}")
-print(f" Lightcurves: {final_lc_path}")
-print(f" Labels: {final_label_path}")
-
+print("\nDone!")

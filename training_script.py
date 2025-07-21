@@ -25,7 +25,7 @@ for label in ['CONST', 'rrlyr', 'lpv', 'ml', 'CV']:
                 Y.append(label)
                 print(f"Loaded {fname}")
             else:
-                print(f"⚠️ Skipped {fname}: missing columns or empty")
+                print(f"Skipped {fname}: missing columns or empty")
         except Exception as e:
             print(f"Failed to load {fname}: {e}")
 

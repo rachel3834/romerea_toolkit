@@ -371,3 +371,45 @@ label_df = pd.DataFrame(label_rows)
 label_csv_path = os.path.join(final_dir, "const_microlia_labels.csv")
 label_df.to_csv(label_csv_path, index=False)
 print(f"Microlia-compatible label CSV saved to: {label_csv_path}")
+
+TRAINING_DIR = "/data01/aschweitzer/software/microlia_output/training_data"
+label_for_training = "CONST"
+
+
+
+
+
+#create separate output directories per filter
+for flt in filters:
+    renamed_flt = filter_rename_map[flt]
+    os.makedirs(f"{TRAINING_DIR}_{renamed_flt}/{label_for_training}", exist_ok=True)
+
+#loop over stars and filters
+for star_idx, field_id in all_binned_ids:
+    for flt in filters:
+        arr = data[star_idx, filter_masks[flt], :]
+        mask = (arr[:, QC_COL] == 0) & (arr[:, MAG_COL] > 0) & (arr[:, MAG_ERR_COL] < 0.5)
+
+        if np.sum(mask) == 0:
+            continue
+
+        hjd = arr[mask, HJD_COL]
+        mag = arr[mask, MAG_COL]
+        err = arr[mask, MAG_ERR_COL]
+
+        #save as CSV with no header and no ID
+        df = pd.DataFrame({
+            "hjd": hjd,
+            "mag": mag,
+            "mag_err": err
+        })
+
+        renamed_flt = filter_rename_map[flt]
+        out_path = os.path.join(
+            f"{TRAINING_DIR}_{renamed_flt}", label_for_training,
+            f"star_{field_id}_{star_idx}.csv"
+        )
+
+        df.to_csv(out_path, index=False, header=False, float_format="%.6f")
+        print(f"Saved: {out_path}")
+
