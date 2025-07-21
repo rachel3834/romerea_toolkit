@@ -24,6 +24,7 @@ TRAINING_BASE = "/data01/aschweitzer/software/microlia_output/training_data"
 
 summary_rows = []
 all_lightcurve_rows = []
+label = "cv"
 
 
 for field_num in range(1, 21):
@@ -101,7 +102,7 @@ for field_num in range(1, 21):
             #save csv files with time hjd, mag, mag_err
             for filt, df_filt in df_full.groupby("filter"):
                 # output directory per filter and label
-                out_dir = os.path.join(f"{TRAINING_BASE}_{filt}")
+                out_dir = os.path.join(f"{TRAINING_BASE}_{filt}", label)
                 os.makedirs(out_dir, exist_ok=True)
 
                 filename = f"{star_id}.csv"
@@ -112,31 +113,5 @@ for field_num in range(1, 21):
 
                 print(f"Saved to {filepath}")
 
-            #combined CSV analysis
-            df_full["id"] = star_id
-            all_lightcurve_rows.append(df_full)
-
-            #summary info
-            summary_rows.append({
-                "id": star_id,
-                "field_id": field_id,
-                "ra": ra,
-                "dec": dec,
-                "quadrant_id": quadrant_val,
-                "n_obs": len(df_full)
-            })
-
-#now save summary CSV
-summary_df = pd.DataFrame(summary_rows)
-summary_path = os.path.join(output_dir, "microlia_CV_star_summary.csv")
-summary_df.to_csv(summary_path, index=False)
-print(f"Saved summary CSV to {summary_path}")
-
-#save combined CSV for analysis
-if all_lightcurve_rows:
-    combined_lc = pd.concat(all_lightcurve_rows, ignore_index=True)
-    combined_path = os.path.join(microlia_out_base, "cv_microlia_lightcurves.csv")
-    combined_lc.to_csv(combined_path, index=False, float_format="%.6f")
-    print(f"Saved combined lightcurve CSV to {combined_path}")
 
 print("\nDone!")

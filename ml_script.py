@@ -16,6 +16,8 @@ LABEL_CSV = os.path.join(OUTPUT_DIR, "ml_microlia_labels.csv")
 input_csv = "/data01/aschweitzer/software/CV_Lightcurves/ml_lcs/ml_table.csv"
 input_df = pd.read_csv(input_csv)
 
+label = "ml"
+
 
 
 # Map filters to FITS HDU names
@@ -71,7 +73,7 @@ for star_name, star_group in tqdm(input_df.groupby("name"), desc="Processing sta
                 })
 
                 # Save to training_data_{filter}/{label}/...
-                per_filter_dir = os.path.join(f"{TRAINING_BASE}_{filt}")
+                per_filter_dir = os.path.join(f"{TRAINING_BASE}_{filt}", label)
                 os.makedirs(per_filter_dir, exist_ok=True)
 
                 filename = f"star_{star_name}.csv"

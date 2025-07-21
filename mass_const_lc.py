@@ -373,7 +373,7 @@ label_df.to_csv(label_csv_path, index=False)
 print(f"Microlia-compatible label CSV saved to: {label_csv_path}")
 
 TRAINING_DIR = "/data01/aschweitzer/software/microlia_output/training_data"
-label_for_training = "CONST"
+label_for_training = "const"
 
 
 
