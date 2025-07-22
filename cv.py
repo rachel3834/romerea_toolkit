@@ -14,7 +14,7 @@ filter_map = {"ip": "i", "gp": "g", "rp": "r"}
 #loop over 1-20 fields
 for field_num in range(1, 21):
     field_str = f"ROME-FIELD-{field_num:02d}"
-    match_file = os.path.join(match_dir, f"{field_str}_matches.txt")
+    match_file = os.path.join(match_dir, f"{field_str}_CV_matches.txt")
     crossmatch_file = os.path.join(crossmatch_dir, f"{field_str}_field_crossmatch.fits")
 
     if not os.path.exists(match_file) or not os.path.exists(crossmatch_file):
