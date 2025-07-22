@@ -247,7 +247,7 @@ for star_idx, field_id in all_binned_ids:
     plt.savefig(os.path.join(output_dir, f"field{field_id}_const_star{star_idx}_ALL_resid_lc.png"))
     plt.close()
 
-# FINAL CSV SAVE FILE FOR MICROLIA
+# FINAL .dat SAVE FILE FOR MICROLIA
 csv_summary_path = os.path.join(output_dir, "const_star_photometry_summary.csv")
 summary_rows = []
 
@@ -293,16 +293,14 @@ df_summary = pd.DataFrame(summary_rows)
 df_summary.to_csv(csv_summary_path, index=False)
 print(f"\nSaved full star summary CSV to: {csv_summary_path}")
 
-# ... [rest of your script above unchanged] ...
-
 import os
 
 TRAINING_DIR = "/data01/aschweitzer/software/microlia_output/training_data"
-label_for_training = "CONST"
+label_for_training = "const"
 star_training_dir = os.path.join(TRAINING_DIR, label_for_training)
 os.makedirs(star_training_dir, exist_ok=True)
 
-# lightcurve CSV for Microlia (combined)
+# lightcurve ;dat for Microlia (combined)
 lightcurve_rows = []
 
 for star_idx, field_id in all_binned_ids:
@@ -342,42 +340,15 @@ for star_idx, field_id in all_binned_ids:
     #save one CSV per star in Microlia training data format
     if star_dfs:
         star_df = pd.concat(star_dfs, ignore_index=True)
-        star_filename = f"star_{field_id}_{star_idx}.csv"
+        star_filename = f"star_{field_id}_{star_idx}.dat"
         star_filepath = os.path.join(star_training_dir, star_filename)
 
-        star_df.to_csv(
-            star_filepath,
-            index=False,
-            header=False,
-            float_format="%.6f"
-        )
+        star_df.to_csv(star_filepath, index=False, header=False, float_format="%.6f", sep=" ")
+
         print(f"Saved Microlia training lightcurve for star {field_id}_{star_idx} at {star_filepath}")
 
-#also save combined CSV lightcurves
-lightcurve_df = pd.DataFrame(lightcurve_rows)
-lightcurve_csv_path = os.path.join(final_dir, "const_microlia_lightcurves.csv")
-lightcurve_df.to_csv(lightcurve_csv_path, index=False)
-print(f"Microlia-compatible combined lightcurve CSV saved to {lightcurve_csv_path}")
-
-#save labels CSV
-label_rows = []
-for star_idx, field_id in all_binned_ids:
-    label_rows.append({
-        "id": f"{field_id}_{star_idx}",
-        "label": label_for_training
-    })
-
-label_df = pd.DataFrame(label_rows)
-label_csv_path = os.path.join(final_dir, "const_microlia_labels.csv")
-label_df.to_csv(label_csv_path, index=False)
-print(f"Microlia-compatible label CSV saved to: {label_csv_path}")
 
 TRAINING_DIR = "/data01/aschweitzer/software/microlia_output/training_data"
-label_for_training = "const"
-
-
-
-
 
 #create separate output directories per filter
 for flt in filters:
@@ -407,9 +378,9 @@ for star_idx, field_id in all_binned_ids:
         renamed_flt = filter_rename_map[flt]
         out_path = os.path.join(
             f"{TRAINING_DIR}_{renamed_flt}", label_for_training,
-            f"star_{field_id}_{star_idx}.csv"
+            f"star_{field_id}_{star_idx}.dat"
         )
 
-        df.to_csv(out_path, index=False, header=False, float_format="%.6f")
+        df.to_csv(out_path, index=False, header=False, float_format="%.6f", sep=" ")
         print(f"Saved: {out_path}")
 

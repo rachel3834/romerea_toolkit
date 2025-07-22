@@ -75,9 +75,12 @@ for star_name, star_group in tqdm(input_df.groupby("name"), desc="Processing sta
                 per_filter_dir = os.path.join(f"{TRAINING_BASE}_{filt}", label)
                 os.makedirs(per_filter_dir, exist_ok=True)
 
-                filename = f"star_{star_name}.csv"
+
+
+#USE SPACE SEP + CONVERT TO .DAT
+                filename = f"star_{star_name}.dat"
                 filepath = os.path.join(per_filter_dir, filename)
-                df.to_csv(filepath, index=False, header=False, float_format="%.6f")
+                df.to_csv(filepath, index=False, header=False, float_format="%.6f", sep=" ")
                 print(f"Saved: {filepath}")
 
                 #also store for combined CSV just for analysis

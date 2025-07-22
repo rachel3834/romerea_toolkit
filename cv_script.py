@@ -62,6 +62,9 @@ for field_num in range(1, 21):
             qid = int(row["quadrant_id"])
             field_id = int(row["field_id"])
 
+            #------ ADD IN output what file is actually being read -------
+            print(f"Field id of star being read is {field_id}")
+
             try:
                 star_lc = read_star_from_hd5_file(phot_file, qid)
                 print(f"Original dtype: {star_lc.dtype}, native? {star_lc.dtype.isnative}")
@@ -107,19 +110,36 @@ for field_num in range(1, 21):
                 print(f"No valid data for {star_id}, skipping")
                 continue
 
-            #save csv files with time hjd, mag, mag_err
-            for filt, df_filt in df_full.groupby("filter"):
-                # output directory per filter and label
-                out_dir = os.path.join(f"{TRAINING_BASE}_{filt}", label)
-                os.makedirs(out_dir, exist_ok=True)
 
-                filename = f"{star_id}.csv"
-                filepath = os.path.join(out_dir, filename)
 
-                df_to_save = df_filt[["time", "mag", "mag_err"]]
-                df_to_save.to_csv(filepath, index=False, header=False, float_format="%.6f")
 
-                print(f"Saved to {filepath}")
+         #----- ADD IN PRINT STATEMENTS FOR EACH SECTION ------
+        print(f"\n--- Processing star {star_id} ---")
+        print(f"RA: {ra}, Dec: {dec}, Quadrant: {quadrant_val}")
+        print(f"Total observations: {len(mag)}")
+        print(f"Valid observations: {np.sum(valid)}")
+
+        if df_full.empty:
+            print(f"No valid data in DataFrame for {star_id}, skipping.")
+            continue
+        else:
+            print(f"Total grouped filters: {df_full['filter'].nunique()}")
+            print("Filter distribution:")
+            print(df_full['filter'].value_counts())
+
+        #save csv files with time hjd, mag, mag_err
+        for filt, df_filt in df_full.groupby("filter"):
+            print(f"\n-- Saving filter: {filt} --")
+            out_dir = os.path.join(f"{TRAINING_BASE}_{filt}", label)
+            os.makedirs(out_dir, exist_ok=True)
+
+            filename = f"{star_id}.csv"
+            filepath = os.path.join(out_dir, filename)
+
+            df_to_save = df_filt[["time", "mag", "mag_err"]]
+            print(f"Saving {len(df_to_save)} observations to {filepath}")
+            df_to_save.to_csv(filepath, index=False, header=False, float_format="%.6f")
+
 
 
 print("\nDone!")
