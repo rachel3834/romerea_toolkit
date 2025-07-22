@@ -11,21 +11,17 @@ from tqdm import tqdm
 
 photo_dir = "/data01/aschweitzer/software/photo_copies"
 data_dir = "/data01/aschweitzer/data"
-output_dir = "/data01/aschweitzer/software/CV_Lightcurves/plots"
-microlia_out_base = "/data01/aschweitzer/software/microlia_output/cv"
-os.makedirs(output_dir, exist_ok=True)
+microlia_out_base = "/data01/aschweitzer/software/microlia_output"
+TRAINING_BASE = os.path.join(microlia_out_base, "training_data")
+
+# Create base output dir
 os.makedirs(microlia_out_base, exist_ok=True)
 
-#filter mapping from ROMEREA filters to Microlia filters
+# ROMEREA filter → Microlia filter mapping
 filter_map = {"ip": "i", "rp": "r", "gp": "g"}
 
-#microlia training base dir root (per filter and label)
-TRAINING_BASE = "/data01/aschweitzer/software/microlia_output/training_data"
-
-summary_rows = []
-all_lightcurve_rows = []
+# Label for this dataset
 label = "cv"
-
 
 for field_num in range(1, 21):
     print(f"\nProcessing field {field_num:02d}")
@@ -61,20 +57,12 @@ for field_num in range(1, 21):
         for _, row in group.iterrows():
             qid = int(row["quadrant_id"])
             field_id = int(row["field_id"])
-
-            #------ ADD IN output what file is actually being read -------
             print(f"Field id of star being read is {field_id}")
 
             try:
                 star_lc = read_star_from_hd5_file(phot_file, qid)
-                print(f"Original dtype: {star_lc.dtype}, native? {star_lc.dtype.isnative}")
-
-                #force numpy to copy to native-endian dtype
                 if not star_lc.dtype.isnative:
-                    star_lc = star_lc.byteswap().newbyteorder() #TRYING TO FIX ENDIAN ERROR BY CONVERTING TO NATIVE DTYPE
-                    print(f"Original dtype: {star_lc.dtype}, native? {star_lc.dtype.isnative}")
-
-
+                    star_lc = star_lc.byteswap().newbyteorder()
             except Exception as e:
                 print(f"Failed reading qid {qid} from {phot_file}: {e}")
                 continue
@@ -85,7 +73,7 @@ for field_num in range(1, 21):
 
             star_id = f"field{field_id}_quad{quadrant}_qid{qid}"
 
-            #LC columns
+            # LC columns
             mag = star_lc[:, 7]
             mag_err = star_lc[:, 8]
             valid = np.isfinite(mag) & np.isfinite(mag_err)
@@ -94,11 +82,7 @@ for field_num in range(1, 21):
                 print(f"No valid observations for {star_id}, skipping.")
                 continue
 
-            #fine filter for each observation and map it
-            #filters_all matches time axis of star_lc for all stars — so now we can find filter per obs:
             filters_valid = [filter_map.get(f, f) for f in filters_all[valid]]
-
-            # group data by filter
             df_full = pd.DataFrame({
                 "time": hjd_all[valid],
                 "mag": mag[valid],
@@ -106,40 +90,29 @@ for field_num in range(1, 21):
                 "filter": filters_valid
             })
 
+            print(f"\n--- Processing star {star_id} ---")
+            print(f"RA: {ra}, Dec: {dec}, Quadrant: {quadrant_val}")
+            print(f"Total observations: {len(mag)}")
+            print(f"Valid observations: {np.sum(valid)}")
+
             if df_full.empty:
-                print(f"No valid data for {star_id}, skipping")
+                print(f"No valid data in DataFrame for {star_id}, skipping.")
                 continue
+            else:
+                print(f"Total grouped filters: {df_full['filter'].nunique()}")
+                print("Filter distribution:")
+                print(df_full['filter'].value_counts())
 
+            for filt, df_filt in df_full.groupby("filter"):
+                print(f"\n-- Saving filter: {filt} --")
+                out_dir = os.path.join(f"{TRAINING_BASE}_{filt}", label)
+                os.makedirs(out_dir, exist_ok=True)
 
+                filename = f"{star_id}.dat"
+                filepath = os.path.join(out_dir, filename)
 
-
-         #----- ADD IN PRINT STATEMENTS FOR EACH SECTION ------
-        print(f"\n--- Processing star {star_id} ---")
-        print(f"RA: {ra}, Dec: {dec}, Quadrant: {quadrant_val}")
-        print(f"Total observations: {len(mag)}")
-        print(f"Valid observations: {np.sum(valid)}")
-
-        if df_full.empty:
-            print(f"No valid data in DataFrame for {star_id}, skipping.")
-            continue
-        else:
-            print(f"Total grouped filters: {df_full['filter'].nunique()}")
-            print("Filter distribution:")
-            print(df_full['filter'].value_counts())
-
-        #save csv files with time hjd, mag, mag_err
-        for filt, df_filt in df_full.groupby("filter"):
-            print(f"\n-- Saving filter: {filt} --")
-            out_dir = os.path.join(f"{TRAINING_BASE}_{filt}", label)
-            os.makedirs(out_dir, exist_ok=True)
-
-            filename = f"{star_id}.csv"
-            filepath = os.path.join(out_dir, filename)
-
-            df_to_save = df_filt[["time", "mag", "mag_err"]]
-            print(f"Saving {len(df_to_save)} observations to {filepath}")
-            df_to_save.to_csv(filepath, index=False, header=False, float_format="%.6f")
-
-
+                df_to_save = df_filt[["time", "mag", "mag_err"]]
+                print(f"Saving {len(df_to_save)} observations to {filepath}")
+                df_to_save.to_csv(filepath, index=False, header=False, sep=" ", float_format="%.6f")
 
 print("\nDone!")
