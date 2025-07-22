@@ -4,7 +4,7 @@ from astropy.io import fits
 from romerea_toolkit import crossmatch
 
 #directories
-match_dir = "/data01/aschweitzer/data"
+match_dir = "/data01/aschweitzer/data/"
 crossmatch_dir = "/data01/aschweitzer/data/ROME/"
 output_root = "/data01/aschweitzer/software/microlia_output/"
 
@@ -12,7 +12,7 @@ output_root = "/data01/aschweitzer/software/microlia_output/"
 filter_map = {"ip": "i", "gp": "g", "rp": "r"}
 
 #loop over 1-20 fields
-for field_num in range(1, 21):
+for field_num in range(1, 25):
     field_str = f"ROME-FIELD-{field_num:02d}"
     match_file = os.path.join(match_dir, f"{field_str}_CV_matches.txt")
     crossmatch_file = os.path.join(crossmatch_dir, f"{field_str}_field_crossmatch.fits")
