@@ -15,7 +15,7 @@ filter_map = {"ip": "i", "gp": "g", "rp": "r"}
 for field_num in range(1, 25):
     field_str = f"ROME-FIELD-{field_num:02d}"
     match_file = os.path.join(match_dir, f"{field_str}_CV_matches.txt")
-    crossmatch_file = os.path.join(crossmatch_dir, f"{field_str}_field_crossmatch.fits")
+    crossmatch_file = os.path.join(crossmatch_dir, field_str, f"{field_str}_field_crossmatch.fits")
 
     if not os.path.exists(match_file) or not os.path.exists(crossmatch_file):
         print(f"Missing match file data for field {field_num}")
