@@ -14,8 +14,13 @@ required_columns = {"id", "time", "mag", "mag_err", "filter"}
 if not required_columns.issubset(df.columns):
     raise ValueError(f"Missing columns in input CSV. Required: {required_columns}")
 
-#filter out anything <= 0 for mag and _err
-df = df[(df["mag"] >= 0) & (df["mag_err"] >= 0)]
+
+#making sure mag and mag_err are float format
+df["mag"] = pd.to_numeric(df["mag"], errors="coerce")
+df["mag_err"] = pd.to_numeric(df["mag_err"], errors="coerce")
+
+#filter out anything <= 0.0 for mag and _err
+df = df[(df["mag"] > 0.0) & (df["mag_err"] > 0.0)]
 
 #now to loop thru each filter (i, g, r)
 for filt in ["i", "g", "r"]:
