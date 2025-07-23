@@ -49,3 +49,28 @@ print("\nSummary of removed files:")
 for filt, files in total_removed.items():
     for f in files:
         print(f"{filt}: {f}")
+
+
+
+
+
+
+
+#checknig... # bad files using microlia load
+from MicroLIA import training_set
+
+filt = "r"
+training_path = f"/data01/aschweitzer/software/microlia_output/training_data_{filt}/lpv"
+bad_files = []
+
+for fname in os.listdir(training_path):
+    if not fname.endswith(".dat"):
+        continue
+    full_path = os.path.join(training_path, fname)
+    try:
+        _ = training_set.load_from_path(full_path)
+    except Exception as e:
+        print(f"Failed to load {fname} due to error: {e}")
+        bad_files.append(fname)
+
+print(f"\nTotal bad files in {filt}p: {len(bad_files)}")
