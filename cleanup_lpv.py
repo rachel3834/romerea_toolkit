@@ -11,7 +11,7 @@ filters = ["i", "g", "r"]
 total_removed = {}
 
 for filt in filters:
-    datadir = os.path.join(base_dir, f"training_data_{filt}", "cv")
+    datadir = os.path.join(base_dir, f"training_data_{filt}", "lpv")
     if not os.path.isdir(datadir):
         print(f"Directory not found: {datadir}")
         continue
