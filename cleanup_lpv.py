@@ -31,9 +31,14 @@ for filt in filters:
                 os.remove(fpath)
                 continue
 
-            #all entries must be numeric and not NAN
+            #now removing <= 0.0        
             df = df.apply(pd.to_numeric, errors="coerce")
             if df.isnull().any().any():
+                removed.append(fname)
+                os.remove(fpath)
+                continue
+
+            if (df[2] <= 0.0).any():
                 removed.append(fname)
                 os.remove(fpath)
 
@@ -56,21 +61,3 @@ for filt, files in total_removed.items():
 
 
 
-#checknig... # bad files using microlia load
-from MicroLIA import training_set
-
-filt = "r"
-training_path = f"/data01/aschweitzer/software/microlia_output/training_data_{filt}/lpv"
-bad_files = []
-
-for fname in os.listdir(training_path):
-    if not fname.endswith(".dat"):
-        continue
-    full_path = os.path.join(training_path, fname)
-    try:
-        _ = training_set.load_all(full_path)
-    except Exception as e:
-        print(f"Failed to load {fname} due to error: {e}")
-        bad_files.append(fname)
-
-print(f"\nTotal bad files in {filt}p: {len(bad_files)}")
