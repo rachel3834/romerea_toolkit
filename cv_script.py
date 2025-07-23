@@ -9,18 +9,18 @@ from romerea_toolkit.hd5_utils import read_star_from_hd5_file
 from romerea_toolkit import crossmatch
 from tqdm import tqdm
 
+#directories (distinguish training base)
 photo_dir = "/data01/aschweitzer/software/photo_copies"
 data_dir = "/data01/aschweitzer/data"
 microlia_out_base = "/data01/aschweitzer/software/microlia_output"
 TRAINING_BASE = os.path.join(microlia_out_base, "training_data")
 
-# Create base output dir
 os.makedirs(microlia_out_base, exist_ok=True)
 
-# ROMEREA filter → Microlia filter mapping
+#romerea filter → microlia filter name
 filter_map = {"ip": "i", "rp": "r", "gp": "g"}
 
-# Label for this dataset
+#Star typ
 label = "cv"
 
 for field_num in range(1, 21):
@@ -39,7 +39,7 @@ for field_num in range(1, 21):
     xmatch.load(crossmatch_file, log=None)
     image_data = xmatch.images
     hjd_all = image_data["hjd"]
-    filters_all = image_data["filter"].astype(str)
+    filters_all = np.char.decode(image_data["filter"], encoding='utf-8')
 
     with fits.open(crossmatch_file) as hdul:
         field_index_data = hdul["FIELD_INDEX"].data
@@ -62,7 +62,12 @@ for field_num in range(1, 21):
             try:
                 star_lc = read_star_from_hd5_file(phot_file, qid)
                 if not star_lc.dtype.isnative:
-                    star_lc = star_lc.byteswap().newbyteorder()
+                        print(f"Converting from non-native dtype: {star_lc.dtype}")
+                        star_lc = star_lc.byteswap().newbyteorder()
+                        print(f"New dtype: {star_lc.dtype}")
+                
+                df = pd.DataFrame(star_lc)
+
             except Exception as e:
                 print(f"Failed reading qid {qid} from {phot_file}: {e}")
                 continue
@@ -73,7 +78,7 @@ for field_num in range(1, 21):
 
             star_id = f"field{field_id}_quad{quadrant}_qid{qid}"
 
-            # LC columns
+            #LC columns
             mag = star_lc[:, 7]
             mag_err = star_lc[:, 8]
             valid = np.isfinite(mag) & np.isfinite(mag_err)
@@ -90,13 +95,14 @@ for field_num in range(1, 21):
                 "filter": filters_valid
             })
 
-            print(f"\n--- Processing star {star_id} ---")
+            #print to let us know what's being processed
+            print(f"\nProcessing star {star_id}")
             print(f"RA: {ra}, Dec: {dec}, Quadrant: {quadrant_val}")
             print(f"Total observations: {len(mag)}")
             print(f"Valid observations: {np.sum(valid)}")
 
             if df_full.empty:
-                print(f"No valid data in DataFrame for {star_id}, skipping.")
+                print(f"No valid data in DataFrame for {star_id}, skipping...")
                 continue
             else:
                 print(f"Total grouped filters: {df_full['filter'].nunique()}")
@@ -104,7 +110,7 @@ for field_num in range(1, 21):
                 print(df_full['filter'].value_counts())
 
             for filt, df_filt in df_full.groupby("filter"):
-                print(f"\n-- Saving filter: {filt} --")
+                print(f"\nSaving filter: {filt}")
                 out_dir = os.path.join(f"{TRAINING_BASE}_{filt}", label)
                 os.makedirs(out_dir, exist_ok=True)
 
