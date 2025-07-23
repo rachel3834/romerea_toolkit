@@ -19,7 +19,7 @@ if not required_columns.issubset(df.columns):
 for filt in ["i", "g", "r"]:
     df_filt = df[df["filter"] == filt]
     #send the output to..
-    output_dir = os.path.join(output_base, f"training_dir_{filt}", "cv")
+    output_dir = os.path.join(output_base, f"training_data_{filt}", "cv")
     os.makedirs(output_dir, exist_ok=True)
 
     #now loop per star (via id column)
