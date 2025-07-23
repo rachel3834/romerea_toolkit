@@ -39,7 +39,8 @@ for field_num in range(1, 21):
     xmatch.load(crossmatch_file, log=None)
     image_data = xmatch.images
     hjd_all = image_data["hjd"]
-    filters_all = np.char.decode(image_data["filter"], encoding='utf-8')
+    filters_all = np.array([str(f) for f in image_data["filter"]])
+
 
     with fits.open(crossmatch_file) as hdul:
         field_index_data = hdul["FIELD_INDEX"].data
