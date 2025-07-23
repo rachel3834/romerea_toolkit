@@ -110,6 +110,10 @@ for field_num in range(1, 21):
                 print("Filter distribution:")
                 print(df_full['filter'].value_counts())
 
+            #force filter column to normal strings
+            df_full['filter'] = df_full['filter'].apply(lambda x: x.decode() if isinstance(x, bytes) else str(x))
+
+
             for filt, df_filt in df_full.groupby("filter"):
                 print(f"\nSaving filter: {filt}")
                 out_dir = os.path.join(f"{TRAINING_BASE}_{filt}", label)
