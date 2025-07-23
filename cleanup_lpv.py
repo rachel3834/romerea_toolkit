@@ -68,7 +68,7 @@ for fname in os.listdir(training_path):
         continue
     full_path = os.path.join(training_path, fname)
     try:
-        _ = training_set.load_from_path(full_path)
+        _ = training_set.load_all(full_path)
     except Exception as e:
         print(f"Failed to load {fname} due to error: {e}")
         bad_files.append(fname)
