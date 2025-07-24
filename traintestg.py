@@ -1,64 +1,34 @@
 from MicroLIA import training_set, ensemble_model
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-import matplotlib.pyplot as plt
-import os
-import shutil
-import tempfile
 
-filter_used = "g"
-base_training_path = "/data01/aschweitzer/software/microlia_output"
-training_data_path = os.path.join(base_training_path, f"training_data_{filter_used}")
-final_model_dir = os.path.join(base_training_path, f"model_{filter_used}")
+path = '/data01/aschweitzer/software/microlia_output/training_g/'
+data_x, data_y = training_set.load_all(
+    path=path,
+    convert=True,
+    zp=22,
+    filename='ROME_G_TRAINING',
+    apply_weights=True,
+    save_file=True
+)
 
-#load data via microlia
-x, y = training_set.load_all(training_data_path)
-
-#train model on training_data_path
+#train
 model = ensemble_model.Classifier(
-    x,
-    y,
+    data_x, data_y,
+    clf='xgb',
     impute=True,
     optimize=True,
-    opt_cv=3,
-    boruta_trials=25,
-    n_iter=25
+    opt_cv=10,
+    n_iter=100,
+    boruta_trials=1000
 )
+
+#create, save
 model.create()
+model.save('ROME_G_MODEL')
 
-#saving to a temp path
-with tempfile.TemporaryDirectory(dir=base_training_path) as temp_dir:
-    model.save(temp_dir)
-
-    #remove previous model if it exists
-    if os.path.exists(final_model_dir):
-        shutil.rmtree(final_model_dir)
-
-    #move new model from temp to final location
-    shutil.move(temp_dir, final_model_dir)
-
-print(f"Model saved to {final_model_dir}")
-
-
-#evaluate this model
-model_loaded = ensemble_model.Classifier(x, y, clf="xgb", impute=True)
-model_loaded.load(final_model_dir)
-y_pred = model_loaded.predict(x)
-
-#make conf matrix
-labels = sorted(set(y))
-cm = confusion_matrix(y, y_pred, labels=labels)
-disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
-
-plt.figure(figsize=(8, 6))
-disp.plot(cmap="Blues", xticks_rotation=45)
-plt.title(f"Confusion Matrix - Filter {filter_used}")
-plt.tight_layout()
-
-#SAVE confusion matrix
-conf_matrix_dir = os.path.join(base_training_path, "confusion_matrices")
-os.makedirs(conf_matrix_dir, exist_ok=True)
-cm_path = os.path.join(conf_matrix_dir, f"confusion_matrix_{filter_used}.png")
-plt.savefig(cm_path)
-plt.show()
-
-print(f"Confusion matrix saved to: {cm_path}")
+#make plot
+model.plot_conf_matrix()                 #conf matrix
+model.plot_tsne()                        #feature space projection
+model.plot_feature_opt(top=20, flip_axes=True)
+model.plot_hyper_opt(xlim=(1,100), ylim=(0.9775,0.995), xlog=True)
+model.save_hyper_importance()
+model.plot_hyper_param_importance(plot_time=True)
