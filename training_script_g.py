@@ -9,7 +9,6 @@ base_training_path = "/data01/aschweitzer/software/microlia_output"
 
 #MUST SPECIFY FILTER i, g, r BELOW IN DESIGNATED AREAS
 training_data_path = os.path.join(base_training_path, f"training_data_g")
-validation_data_path = os.path.join(base_training_path, f"validation_dir_g")
 model_path = os.path.join(base_training_path, f"model_g.pkl")
 
 
@@ -41,7 +40,7 @@ print(f"Training complete and model saved to {model_path}")
 
 
 
-X_val, y_val = training_set.load_all(path=validation_data_path)
+X_val, y_val = training_set.load_all(path=training_data_path)
 print(f"Loaded {len(X_val)} validation lightcurves for filter g")
 
 #predict using trained model
