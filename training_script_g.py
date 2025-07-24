@@ -27,9 +27,13 @@ for i, (lc, label) in enumerate(zip(data_x, data_y)):
     
     arr = np.array(lc)
 
+    
+
     print(f"Original shape: {arr.shape}, dtype: {arr.dtype}")
 
     print(f"[{i}] Sample lc:", lc[:5])  # show first few rows
+
+    arr = np.array(lc).squeeze()  #safely remove singleton dimensions
 
     try:
         arr = arr.reshape(-1, 3)  #(168,) → (56, 3)
@@ -37,12 +41,15 @@ for i, (lc, label) in enumerate(zip(data_x, data_y)):
         print(f"[{i}] Cannot reshape {arr.shape}, skipping")
         continue
     
-
-    if arr.shape[1] != 3:
-        print(f"[{i}] Invalid reshaped shape: {arr.shape}")
+    if arr.ndim == 1 and arr.shape[0] % 3 == 0:
+        arr = arr.reshape(-1, 3)
+    elif arr.ndim == 2 and arr.shape[1] == 3:
+        pass  # already okay
+    else:
+        print(f"[{i}] Skipping invalid shape {arr.shape}")
         continue
 
-    df_lc = pd.DataFrame(lc, columns=["time", "mag", "mag_err"])
+    df_lc = pd.DataFrame(arr, columns=["time", "mag", "mag_err"])
     df_lc["label"] = label
     rows.append(df_lc)
 
