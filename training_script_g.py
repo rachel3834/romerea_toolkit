@@ -45,6 +45,16 @@ for i, (lc, label) in enumerate(zip(data_x, data_y)):
     df_lc["label"] = label
     rows.append(df_lc)
 
+
+
+if not rows:
+    print("[ERROR] No valid lightcurves to concatenate. Check data_x logic.")
+    print(f"data_x length: {len(data_x)}")
+    print(f"{type(data_x[0]) if len(data_x) > 0 else 'N/A'}")
+    exit()
+
+
+
 df = pd.concat(rows, ignore_index=True)
 df.to_csv(csv_path, index=False)
 
