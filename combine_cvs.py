@@ -49,3 +49,5 @@ combined_labels.to_csv(label_out, index=False)
 
 print(f"\nCombined lightcurves saved to {lc_out}")
 print(f"Combined labels saved to {label_out}")
+
+
