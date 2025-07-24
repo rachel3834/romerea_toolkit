@@ -1,6 +1,6 @@
 from MicroLIA import training_set, ensemble_model
 
-path = '/data01/aschweitzer/software/microlia_output/training_g/'
+path = '/data01/aschweitzer/software/microlia_output/training_data_g/'
 data_x, data_y = training_set.load_all(
     path=path,
     convert=True,
