@@ -21,7 +21,7 @@ csv_path = os.path.join(base_training_path, f"MicroLIA_Training_Set_{filter_used
 data_x, data_y = training_set.load_all(path=training_data_path)
 rows = []
 
-for i, (lc, label) in zip(data_x, data_y):
+for i, (lc, label) in enumerate(zip(data_x, data_y)):
     # lc should be a Nx3 numpy array or list of [time, mag, mag_err]
     print(type(lc), np.shape(lc))  #what shape is the data??? (168, 1) vs (168, 3) error check
     
