@@ -1,19 +1,26 @@
 from MicroLIA import training_set, ensemble_model
 import os
 import pickle
+import pandas as pd
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
+
+filter_used = "g"
 
 #base path for training data folders
 base_training_path = "/data01/aschweitzer/software/microlia_output"
 
-#MUST SPECIFY FILTER i, g, r BELOW IN DESIGNATED AREAS
-training_data_path = os.path.join(base_training_path, f"training_data_g")
-model_path = os.path.join(base_training_path, f"model_g.pkl")
+
+training_data_path = os.path.join(base_training_path, f"training_data_{filter_used}")
+model_dir_name = os.path.join(base_training_path, f"model_{filter_used}")
+csv_path = os.path.join(base_training_path, f"MicroLIA_Training_Set_{filter_used}.csv")
 
 
-#load training data via microlia
+#load training data via microlia, save to .csv file for conf maatrix
 data_x, data_y = training_set.load_all(path=training_data_path)
+df = training_set.to_dataframe(data_x, data_y)
+df.to_csv(csv_path, index=False)
+print(f"[INFO] Saved training data CSV to: {csv_path}")
 
 print(f"Loaded {len(data_x)} lightcurves for filter g")
 
@@ -30,26 +37,57 @@ model = ensemble_model.Classifier(
 
 #train the model
 model.create()
+model.save(dirname=model_dir_name)
+print(f"Model saved to: {model_dir_name}")
 
-#save model
-model_path = os.path.join(base_training_path, f"model_g.pkl")
-with open(model_path, "wb") as f:
-    pickle.dump(model, f)
+#load model from save state
+loaded_df = pd.read_csv(csv_path)
+model_loaded = ensemble_model.Classifier(clf='xgb', impute=True, training_data=loaded_df)
+model_loaded.load(path=model_dir_name)
+print(f"[INFO] Model reloaded from disk.")
 
-print(f"Training complete and model saved to {model_path}")
+#check what's being loaded
+bad_files = []
+
+for root, dirs, files in os.walk(training_data_path):
+    for file in files:
+        if file.endswith(".dat"):
+            path = os.path.join(root, file)
+            try:
+                _ = training_set.load_single(path)
+            except Exception as e:
+                print(f"[BAD FILE] {path} -- {e}")
+                bad_files.append(path)
+
+print(f"\nTotal broken files: {len(bad_files)}")
 
 
+#then clean them
+def clean_broken_dat_files(training_data_path):
+    removed = []
+    for root, dirs, files in os.walk(training_data_path):
+        for file in files:
+            if file.endswith(".dat"):
+                path = os.path.join(root, file)
+                try:
+                    _ = training_set.load_single(path)
+                except:
+                    print(f"Removing broken file: {path}")
+                    os.remove(path)
+                    removed.append(path)
+    print(f"\nRemoved {len(removed)} broken .dat files.")
 
-X_val, y_val = training_set.load_all(path=training_data_path)
-print(f"Loaded {len(X_val)} validation lightcurves for filter g")
+clean_broken_dat_files(training_data_path)
 
-#predict using trained model
-y_pred = model.predict(X_val)
+
+y_pred = model_loaded.predict(loaded_df)
+y_true = loaded_df["label"]
+
 
 
 #make conf matrix
-labels = sorted(set(y_val))  # Ensure consistent label ordering
-cm = confusion_matrix(y_val, y_pred, labels=labels)
+labels = sorted(set(y_true))
+cm = confusion_matrix(y_true, y_pred, labels=labels)
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
 
 
@@ -57,8 +95,9 @@ disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
 disp.plot(cmap="Blues", xticks_rotation=45)
 plt.title(f"Confusion Matrix - Filter g")
 plt.tight_layout()
-
 final_path = os.path.join(base_training_path, "confusion_matrices")
 os.makedirs(final_path, exist_ok=True)
-plt.savefig(os.path.join(final_path, f"confusion_matrix_g.png"))
+plt.savefig(os.path.join(final_path, f"confusion_matrix_{filter_used}.png"))
 plt.show()
+
+print(f"saved this model to {final_path}!")
