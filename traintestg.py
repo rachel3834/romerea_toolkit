@@ -26,15 +26,17 @@ model.create()
 
 #unique name per version of model (v1, v2)
 version = 0
-model_dir_base = os.path.join(base_training_path, f"model_{filter_used}")
-model_dir = model_dir_base
+model_base = f"model_{filter_used}"
+model_dir = os.path.join(base_training_path, model_base)
 
 while os.path.exists(model_dir):
     version += 1
-    model_dir = f"{model_dir_base}_v{version}"
+    model_dir = os.path.join(base_training_path, f"{model_base}_v{version}")
 
 #save the model
 model.save(model_dir)
+print(model_dir)
+print(os.path.exists(model_dir))
 print(f"Model saved to {model_dir}")
 
 
