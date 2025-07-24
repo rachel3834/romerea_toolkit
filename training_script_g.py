@@ -26,19 +26,20 @@ for i, (lc, label) in enumerate(zip(data_x, data_y)):
     print(type(lc), np.shape(lc))  #what shape is the data??? (168, 1) vs (168, 3) error check
     
     arr = np.array(lc)
+
     print(f"Original shape: {arr.shape}, dtype: {arr.dtype}")
+
+    print(f"[{i}] Sample lc:", lc[:5])  # show first few rows
+
+    try:
+        arr = arr.reshape(-1, 3)  #(168,) → (56, 3)
+    except ValueError:
+        print(f"[{i}] Cannot reshape {arr.shape}, skipping")
+        continue
     
-    #if it's 1D but each element is an array/list, stack them to be 2D!
-    if arr.ndim == 1 and isinstance(arr[0], (list, np.ndarray)):
-        try:
-            arr = np.vstack(arr)
-        except Exception as e:
-            print(f"[{i}] Could not stack lightcurve: {e}")
-            continue
-    
-    #sanity check on shape
-    if arr.ndim != 2 or arr.shape[1] != 3:
-        print(f"[{i}] Skipping due to invalid shape: {arr.shape}")
+
+    if arr.shape[1] != 3:
+        print(f"[{i}] Invalid reshaped shape: {arr.shape}")
         continue
 
     df_lc = pd.DataFrame(lc, columns=["time", "mag", "mag_err"])
