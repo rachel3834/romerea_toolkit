@@ -17,8 +17,8 @@ model = ensemble_model.Classifier(
     impute=True,
     optimize=True,
     opt_cv=10,
-    n_iter=100,
-    boruta_trials=1000
+    n_iter=0,
+    boruta_trials=100
 )
 
 #create, save
