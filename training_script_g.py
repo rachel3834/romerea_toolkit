@@ -4,6 +4,7 @@ import pickle
 import pandas as pd
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
+import numpy as np
 
 filter_used = "g"
 
@@ -22,6 +23,7 @@ rows = []
 
 for lc, label in zip(data_x, data_y):
     # lc should be a Nx3 numpy array or list of [time, mag, mag_err]
+    print(type(lc), np.shape(lc))  #what shape is the data??? (168, 1) vs (168, 3) error check
     df_lc = pd.DataFrame(lc, columns=["time", "mag", "mag_err"])
     df_lc["label"] = label
     rows.append(df_lc)
