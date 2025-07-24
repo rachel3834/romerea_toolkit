@@ -2,6 +2,7 @@ from MicroLIA import training_set, ensemble_model
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 import os
+import shutil
 
 filter_used = "g"
 base_training_path = "/data01/aschweitzer/software/microlia_output"
@@ -22,8 +23,21 @@ model = ensemble_model.Classifier(
     n_iter=25
 )
 model.create()
+
+#unique name per version of model (v1, v2)
+version = 0
+model_dir_base = os.path.join(base_training_path, f"model_{filter_used}")
+model_dir = model_dir_base
+
+while os.path.exists(model_dir):
+    version += 1
+    model_dir = f"{model_dir_base}_v{version}"
+
+#save the model
 model.save(model_dir)
 print(f"Model saved to {model_dir}")
+
+
 
 #evaluate this model
 model_loaded = ensemble_model.Classifier(x, y, clf="xgb", impute=True)
