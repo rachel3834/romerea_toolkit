@@ -3,11 +3,12 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 import os
 import shutil
+import tempfile
 
 filter_used = "g"
 base_training_path = "/data01/aschweitzer/software/microlia_output"
 training_data_path = os.path.join(base_training_path, f"training_data_{filter_used}")
-model_dir = os.path.join(base_training_path, f"model_{filter_used}")
+final_model_dir = os.path.join(base_training_path, f"model_{filter_used}")
 
 #load data via microlia
 x, y = training_set.load_all(training_data_path)
@@ -24,27 +25,23 @@ model = ensemble_model.Classifier(
 )
 model.create()
 
-#unique name per version of model (v1, v2)
-version = 0
-model_base = f"model_{filter_used}"
-model_dir = os.path.join(base_training_path, model_base)
+#saving to a temp path
+with tempfile.TemporaryDirectory(dir=base_training_path) as temp_dir:
+    model.save(temp_dir)
 
-#model directory
-model_base = f"model_{filter_used}"
-model_dir = os.path.join(base_training_path, model_base)
+    #remove previous model if it exists
+    if os.path.exists(final_model_dir):
+        shutil.rmtree(final_model_dir)
 
-#remove the directory if it already exists
-if os.path.exists(model_dir):
-    shutil.rmtree(model_dir)
+    #move new model from temp to final location
+    shutil.move(temp_dir, final_model_dir)
 
-#save the model
-model.save(model_dir)
-print(f"Model saved to {model_dir}")
+print(f"Model saved to {final_model_dir}")
 
 
 #evaluate this model
 model_loaded = ensemble_model.Classifier(x, y, clf="xgb", impute=True)
-model_loaded.load(model_dir)
+model_loaded.load(final_model_dir)
 y_pred = model_loaded.predict(x)
 
 #make conf matrix
