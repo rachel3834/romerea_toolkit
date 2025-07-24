@@ -18,9 +18,20 @@ csv_path = os.path.join(base_training_path, f"MicroLIA_Training_Set_{filter_used
 
 #load training data via microlia, save to .csv file for conf maatrix
 data_x, data_y = training_set.load_all(path=training_data_path)
-df = training_set.to_dataframe(data_x, data_y)
+rows = []
+
+for lc, label in zip(data_x, data_y):
+    # lc should be a Nx3 numpy array or list of [time, mag, mag_err]
+    df_lc = pd.DataFrame(lc, columns=["time", "mag", "mag_err"])
+    df_lc["label"] = label
+    rows.append(df_lc)
+
+df = pd.concat(rows, ignore_index=True)
 df.to_csv(csv_path, index=False)
-print(f"[INFO] Saved training data CSV to: {csv_path}")
+
+print(f"saved training data CSV to: {csv_path}")
+
+
 
 print(f"Loaded {len(data_x)} lightcurves for filter g")
 
