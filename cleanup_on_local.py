@@ -8,7 +8,7 @@ import pandas as pd
 base_dir = "/data01/aschweitzer/software/microlia_output"
 
 filters = ["i", "g", "r"]
-stars = ["lpv", "ml", "rrlyr"]
+stars = ["lpv", "ml", "rrlyr", "const"]
 
 total_removed = {}
 
