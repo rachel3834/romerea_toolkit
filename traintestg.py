@@ -29,16 +29,17 @@ version = 0
 model_base = f"model_{filter_used}"
 model_dir = os.path.join(base_training_path, model_base)
 
-while os.path.exists(model_dir):
-    version += 1
-    model_dir = os.path.join(base_training_path, f"{model_base}_v{version}")
+#model directory
+model_base = f"model_{filter_used}"
+model_dir = os.path.join(base_training_path, model_base)
+
+#remove the directory if it already exists
+if os.path.exists(model_dir):
+    shutil.rmtree(model_dir)
 
 #save the model
 model.save(model_dir)
-print(model_dir)
-print(os.path.exists(model_dir))
 print(f"Model saved to {model_dir}")
-
 
 
 #evaluate this model
