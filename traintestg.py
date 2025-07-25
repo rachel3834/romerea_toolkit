@@ -2,7 +2,7 @@ from MicroLIA import training_set, ensemble_model
 
 import os
 
-trial_num = 1
+trial_num = 2
 filt = 'g'
 
 path = '/data01/aschweitzer/software/microlia_output/training_data_g/'
