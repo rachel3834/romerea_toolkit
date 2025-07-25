@@ -10,7 +10,7 @@ data_x, data_y = training_set.load_all(
     path=path,
     convert=True,
     zp=22,
-    filename='ROME_I_TRAINING',
+    filename=f'ROME_{filt}_TRAINING_trial{trial_num}',
     apply_weights=True,
     save_file=True
 )
