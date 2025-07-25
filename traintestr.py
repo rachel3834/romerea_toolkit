@@ -2,6 +2,7 @@ from MicroLIA import training_set, ensemble_model
 import os
 
 trial_num = 1
+filt = 'r'
 
 path = '/data01/aschweitzer/software/microlia_output/training_data_r/'
 data_x, data_y = training_set.load_all(
@@ -25,16 +26,17 @@ model = ensemble_model.Classifier(
 )
 
 #create, save
+
+os.makedirs(f'microlia_output/trial{trial_num}', exist_ok=True)
+
 model.create()
-model.save('ROME_R_MODEL')
+model.save(f'microlia_output/trial{trial_num}/ROME_{filt}_MODEL_{trial_num}')
 
-
-os.makedirs(f'microlia_output/{trial_num}', exist_ok=True)
 
 #make plot
-model.plot_conf_matrix(save_path='microlia_output/trial1/conf_matrix_r.png')                 #conf matrix
-model.plot_tsne(save_path='microlia_output/trial1/tsne_r.png')                        #feature space projection
-model.plot_feature_opt(top=20, flip_axes=True, save_path='microlia_output/trial1/plot_feature_opt_r.png')
-model.plot_hyper_opt(xlim=(1,100), ylim=(0.9775,0.995), xlog=True, save_path='microlia_output/trial1/hyper_opt_r.png')
+model.plot_conf_matrix(save_path=f'microlia_output/trial{trial_num}/conf_matrix_{filt}.png')                 #conf matrix
+model.plot_tsne(save_path=f'microlia_output/trial{trial_num}/tsne_{filt}.png')                        #feature space projection
+model.plot_feature_opt(top=20, flip_axes=True, save_path=f'microlia_output/trial{trial_num}/plot_feature_opt_{filt}.png')
+model.plot_hyper_opt(xlim=(1,100), ylim=(0.9775,0.995), xlog=True, save_path=f'microlia_output/trial{trial_num}/hyper_opt_{filt}.png')
 model.save_hyper_importance()
-model.plot_hyper_param_importance(plot_time=True, save_path='microlia_output/trial1/hyper_param_importance_r.png')
+model.plot_hyper_param_importance(plot_time=True, save_path=f'microlia_output/trial{trial_num}/hyper_param_importance_{filt}.png')
