@@ -33,10 +33,24 @@ model.create()
 model.save(f'microlia_output/trial{trial_num}/ROME_{filt}_MODEL_{trial_num}')
 
 
-#make plot
-model.plot_conf_matrix(save_path=f'microlia_output/trial{trial_num}/conf_matrix_{filt}.png')                 #conf matrix
-model.plot_tsne(save_path=f'microlia_output/trial{trial_num}/tsne_{filt}.png')                        #feature space projection
-model.plot_feature_opt(top=20, flip_axes=True, save_path=f'microlia_output/trial{trial_num}/plot_feature_opt_{filt}.png')
-model.plot_hyper_opt(xlim=(1,100), ylim=(0.9775,0.995), xlog=True, save_path=f'microlia_output/trial{trial_num}/hyper_opt_{filt}.png')
-model.save_hyper_importance()
-model.plot_hyper_param_importance(plot_time=True, save_path=f'microlia_output/trial{trial_num}/hyper_param_importance_{filt}.png')
+import matplotlib.pyplot as plt
+
+model.plot_conf_matrix()
+plt.savefig(f'microlia_output/trial{trial_num}/conf_matrix_{filt}.png', bbox_inches='tight')
+plt.close()
+
+model.plot_tsne()
+plt.savefig(f'microlia_output/trial{trial_num}/tsne_{filt}.png', bbox_inches='tight')
+plt.close()
+
+model.plot_feature_opt(top=20, flip_axes=True)
+plt.savefig(f'microlia_output/trial{trial_num}/feature_opt_{filt}.png', bbox_inches='tight')
+plt.close()
+
+model.plot_hyper_opt(xlim=(1,100), ylim=(0.9775,0.995), xlog=True)
+plt.savefig(f'microlia_output/trial{trial_num}/hyper_opt_{filt}.png', bbox_inches='tight')
+plt.close()
+
+model.plot_hyper_param_importance(plot_time=True)
+plt.savefig(f'microlia_output/trial{trial_num}/hyper_param_importance_{filt}.png', bbox_inches='tight')
+plt.close()
