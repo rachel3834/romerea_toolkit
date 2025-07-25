@@ -10,6 +10,15 @@ data_x, data_y = training_set.load_all(
     save_file=True
 )
 
+#--------- FIX --------------#
+import numpy as np
+
+#map original classes to sequential ones (0–3) because class consistency error
+class_map = {0: 0, 2: 1, 3: 2, 4: 3}
+data_y = np.array([class_map[y] for y in data_y])
+
+#--------- FIX --------------#
+
 #train
 model = ensemble_model.Classifier(
     data_x, data_y,
