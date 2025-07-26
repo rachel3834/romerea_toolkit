@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 
-trial_num = 4
+trial_num = 5
 filt = 'r'
 
 path = '/data01/aschweitzer/software/microlia_output/training_data_g/'
@@ -25,7 +25,7 @@ data_x = data[:,2:].astype('float')
 data_y = data[:,0]
 
 #load in csv (not entirely necessary)
-csv_path = os.path.join(home, f"Microlia_Training_Set_ROME_{filt}_TRAINING_trial{trial_num}.csv")
+csv_path = os.path.join(home, f"MicroLIA_Training_Set_ROME_{filt}_TRAINING_trial{trial_num}.csv")
 csv = pd.read_csv(csv_path)
 
 model = ensemble_model.Classifier(data_x, data_y, clf='xgb', impute=True, optimize=True, n_iter=0, boruta_trials=80)
