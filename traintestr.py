@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 
-trial_num = 5
+trial_num = 6
 filt = 'r'
 
 path = '/data01/aschweitzer/software/microlia_output/training_data_g/'
@@ -44,7 +44,7 @@ model.plot_feature_opt(feat_names='default', top=10, include_other=True, include
 
 model.plot_feature_opt(feat_names='default', top=30, include_other=True, include_shadow=True, include_rejected=False, flip_axes=False, savefig=True)
 
-model.plot_hyper_opt(xlim=(1, 50), ylim=(0.92, 0.98), xlog=True, savefig=True)
+#model.plot_hyper_opt(xlim=(1, 50), ylim=(0.92, 0.98), xlog=True, savefig=True)
 
 model.save_hyper_importance(savefig=True)
 
