@@ -3,10 +3,11 @@ import pandas as pd
 import requests
 from astropy.io import fits
 from tqdm import tqdm
+import random
 
 #constants and paths
 BASE_URL = "https://exoplanetarchive.ipac.caltech.edu/workspace/TMP_Z62BKO_8520/ROME/tab1/data/data_reduction"
-OUTPUT_DIR = "/data01/aschweitzer/software/microlia_output/rrlyr"
+OUTPUT_DIR = "/data01/aschweitzer/software/no_cv_micr/microlia_output/rrlyr"
 TRAINING_BASE = "/data01/aschweitzer/software/microlia_output/training_data"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -18,6 +19,10 @@ input_df = pd.read_csv(input_csv)
 
 label = "rrlyr"
 
+#random 375 stars
+unique_stars = input_df["name"].unique()
+sampled_stars = random.sample(list(unique_stars), min(375, len(unique_stars)))
+input_df = input_df[input_df["name"].isin(sampled_stars)]
 
 # Map filters to FITS HDU names
 filter_hdu_map = {

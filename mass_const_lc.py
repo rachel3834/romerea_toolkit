@@ -11,7 +11,7 @@ import pandas as pd
 hdf5_path = "/data01/aschweitzer/software/photo_copies/ROME-FIELD-20_quad4_photometry.hdf5"
 crossmatch_path = "/data01/aschweitzer/data/ROME/ROME-FIELD-20/ROME-FIELD-20_field_crossmatch.fits"
 output_dir = "CV_Lightcurves/Const_fits"
-final_dir = "/data01/aschweitzer/software/microlia_output/const"
+final_dir = "/data01/aschweitzer/software/no_cv_micr/microlia_output/const"
 ogle_vars = "/data01/aschweitzer/software/CV_Lightcurves/Const_fits/ogle_var_ids/table_ROMESimplest.csv"
 rome_table = pd.read_csv(ogle_vars)
 os.makedirs(output_dir, exist_ok=True)
@@ -183,10 +183,12 @@ for bin_key, star_list in mag_bin_dict.items():
     sampled = random.sample(star_list, n_sample)
     all_binned_ids.extend(sampled)
 
-if len(all_binned_ids) > total_desired:
-    all_binned_ids = random.sample(all_binned_ids, total_desired)
+#select exactly 375 stars for output
+desired_final_count = 375
+if len(all_binned_ids) > desired_final_count:
+    all_binned_ids = random.sample(all_binned_ids, desired_final_count)
 
-print(f"Selected {len(all_binned_ids)} constant stars!")
+print(f"Randomly selected {len(all_binned_ids)} constant stars for final output.")
 
 # Plotting and saving photometry files for const stars
 for star_idx, field_id in all_binned_ids:

@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 #constants and paths
 BASE_URL = "https://exoplanetarchive.ipac.caltech.edu/workspace/TMP_Z62BKO_8520/ROME/tab1/data/data_reduction"
-OUTPUT_DIR = "/data01/aschweitzer/software/microlia_output/ml"
+OUTPUT_DIR = "/data01/aschweitzer/software/no_cv_micr/microlia_output/ml"
 TRAINING_BASE = "/data01/aschweitzer/software/microlia_output/training_data"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
