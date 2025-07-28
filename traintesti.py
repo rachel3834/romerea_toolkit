@@ -31,9 +31,6 @@ csv = pd.read_csv(csv_path)
 model = ensemble_model.Classifier(data_x, data_y, clf='xgb', impute=True, optimize=True, n_iter=0, boruta_trials=80)
 model.create()
 
-#save location ~home
-save_dir = f'test_model_{filt}_trial{trial_num}'
-os.makedirs(save_dir, exist_ok=True)
 
 #plots
 model.plot_conf_matrix(k_fold=10, savefig=True)
@@ -51,4 +48,4 @@ model.save_hyper_importance(savefig=True)
 model.plot_hyper_param_importance(plot_time=True, savefig=True)
 
 #save to save_dir in ~home if possible
-model.save(dirname=save_dir)
+model.save()
