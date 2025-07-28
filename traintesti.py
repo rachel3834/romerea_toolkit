@@ -17,6 +17,8 @@ data_x, data_y = training_set.load_all(
     save_file=True
 )
 
+#print
+
 #load in .txt to regenerate x and y data
 from pathlib import Path
 home = os.path.expanduser("~")
@@ -31,6 +33,7 @@ csv = pd.read_csv(csv_path)
 model = ensemble_model.Classifier(data_x, data_y, clf='xgb', impute=True, optimize=True, n_iter=0, boruta_trials=0)
 model.create()
 
+#print
 
 #plots
 model.plot_conf_matrix(k_fold=10, savefig=True)
