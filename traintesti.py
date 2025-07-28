@@ -22,15 +22,17 @@ data_x, data_y = training_set.load_all(
 #load in .txt to regenerate x and y data
 from pathlib import Path
 home = os.path.expanduser("~")
-data = np.loadtxt(f'{home}/all_features_ROME_{filt}_TRAINING_trial{trial_num}.txt', dtype=str, comments='#')
-data_x = data[:,2:].astype('float')
-data_y = data[:,0]
+#data = np.loadtxt(f'{home}/all_features_ROME_{filt}_TRAINING_trial{trial_num}.txt', dtype=str, comments='#')
+#data_x = data[:,3:].astype('float')
+#data_y = data[:,1]
+
+#training data = .csv
 
 #load in csv (not entirely necessary)
 csv_path = os.path.join(home, f"MicroLIA_Training_Set_ROME_{filt}_TRAINING_trial{trial_num}.csv")
 csv = pd.read_csv(csv_path)
 
-model = ensemble_model.Classifier(data_x, data_y, clf='xgb', impute=True, optimize=True, n_iter=0, boruta_trials=0)
+model = ensemble_model.Classifier(training_data=csv, clf='xgb', impute=True, optimize=True, n_iter=0, boruta_trials=100)
 model.create()
 
 #print
