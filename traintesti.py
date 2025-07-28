@@ -28,7 +28,7 @@ data_y = data[:,0]
 csv_path = os.path.join(home, f"MicroLIA_Training_Set_ROME_{filt}_TRAINING_trial{trial_num}.csv")
 csv = pd.read_csv(csv_path)
 
-model = ensemble_model.Classifier(data_x, data_y, clf='xgb', impute=True, optimize=True, n_iter=0, boruta_trials=80)
+model = ensemble_model.Classifier(data_x, data_y, clf='xgb', impute=True, optimize=True, n_iter=0, boruta_trials=0)
 model.create()
 
 
