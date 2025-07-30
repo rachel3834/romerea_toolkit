@@ -1,51 +1,54 @@
-from MicroLIA import training_set, ensemble_model
 import os
+from MicroLIA import training_set, ensemble_model
 import pandas as pd
-import numpy as np
 
+dat_dir = r"/Users/Alaina/desktop/Vanderbilt REU code/RomeRea/Training Data/microlia_output/training_data_g"
+print(os.path.isdir(dat_dir))
 
-trial_num = 6
 filt = 'g'
+trial_num = 1
+csv_name = f"{filt}_trial{trial_num}"
 
-path = '/data01/aschweitzer/software/microlia_output/training_data_g/'
+# save CSV inside dat_dir
 data_x, data_y = training_set.load_all(
-    path=path,
+    path=dat_dir,
     convert=True,
+    save_file=True,
     zp=22,
-    filename=f'ROME_{filt}_TRAINING_trial{trial_num}',
-    apply_weights=True,
-    save_file=True
+    filename=csv_name
 )
+print("After load_all call")
 
-#load in .txt to regenerate x and y data
-from pathlib import Path
-home = os.path.expanduser("~")
+# read CSV back from dat_dir
+csv_full_path = "/Users/Alaina/MicroLIA_Training_Set_g_trial1.csv"
+print(f"Looking for CSV at {csv_full_path}")
 
-#load in csv (not entirely necessary)
-csv_path = os.path.join(home, f"MicroLIA_Training_Set_ROME_{filt}_TRAINING_trial{trial_num}.csv")
-csv = pd.read_csv(csv_path)
+
+if os.path.exists(csv_full_path):
+    print("CSV file exists!")
+else:
+    print("CSV file NOT found!")
+
+
+csv = pd.read_csv(csv_full_path)
+csv.iloc[:, -1] = csv.iloc[:, -1].astype(int)
+
+print("Unique classes in training data:", csv.iloc[:, -1].unique())
+
+
 
 model = ensemble_model.Classifier(training_data=csv, clf='xgb', impute=True, optimize=True, n_iter=0, boruta_trials=100)
+model.load('daniel_microlia_model/Optimize_XGBoost_CV_Removed')
 model.create()
 
-#save location ~home
-save_dir = f'test_model_{filt}_trial{trial_num}'
-os.makedirs(save_dir, exist_ok=True)
-
-#plots
+# plots
 model.plot_conf_matrix(k_fold=10, savefig=True)
-
 model.plot_tsne(norm=True, savefig=True)
-
 model.plot_feature_opt(feat_names='default', top=10, include_other=True, include_shadow=True, include_rejected=False, flip_axes=True, savefig=True)
-
 model.plot_feature_opt(feat_names='default', top=30, include_other=True, include_shadow=True, include_rejected=False, flip_axes=False, savefig=True)
 
-#model.plot_hyper_opt(xlim=(1, 50), ylim=(0.92, 0.98), xlog=True, savefig=True)
-
-model.save_hyper_importance(savefig=True)
+model.save_hyper_importance()
 
 model.plot_hyper_param_importance(plot_time=True, savefig=True)
 
-#save to save_dir in ~home if possible
-model.save(dirname=save_dir)
+model.save()
