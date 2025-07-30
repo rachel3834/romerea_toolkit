@@ -34,7 +34,6 @@ csv = pd.read_csv(csv_full_path)
 
 model = ensemble_model.Classifier(training_data=csv, clf='xgb', impute=True, optimize=True, n_iter=0, boruta_trials=100)
 model.load('daniel_microlia_model/MicroLIA_ensenmble_model')
-model.create()
 
 # plots
 model.plot_conf_matrix(k_fold=10, savefig=True)

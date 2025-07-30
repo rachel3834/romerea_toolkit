@@ -31,7 +31,6 @@ else:
 
 
 csv = pd.read_csv(csv_full_path)
-csv.iloc[:, -1] = csv.iloc[:, -1].astype(int)
 
 print("Unique classes in training data:", csv.iloc[:, -1].unique())
 
@@ -39,7 +38,6 @@ print("Unique classes in training data:", csv.iloc[:, -1].unique())
 
 model = ensemble_model.Classifier(training_data=csv, clf='xgb', impute=True, optimize=True, n_iter=0, boruta_trials=100)
 model.load('daniel_microlia_model/Optimize_XGBoost_CV_Removed')
-model.create()
 
 # plots
 model.plot_conf_matrix(k_fold=10, savefig=True)
